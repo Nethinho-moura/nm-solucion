@@ -9,20 +9,16 @@ body {
   font-family: Arial, sans-serif;
   background: #eef2f7;
   margin: 0;
-  padding: 0;
 }
-
 header {
   background: #0b3c5d;
   color: white;
   padding: 15px;
   text-align: center;
 }
-
 .container {
   padding: 20px;
 }
-
 .card {
   background: white;
   padding: 15px;
@@ -31,175 +27,17 @@ header {
   box-shadow: 0 2px 6px rgba(0,0,0,0.1);
 }
 
+/* ✅ FORMULÁRIO EM LINHA */
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 10px;
+}
+
 input, button {
   padding: 8px;
-  margin: 5px 0;
   width: 100%;
 }
 
 button {
-  background: #0b3c5d;
-  color: white;
-  border: none;
-  cursor: pointer;
-}
 
-button:hover {
-  background: #155a87;
-}
-
-table {
-  width: 100%;
-  border-collapse: collapse;
-  margin-top: 10px;
-}
-
-th, td {
-  border: 1px solid #ccc;
-  padding: 8px;
-  text-align: left;
-}
-
-th {
-  background: #0b3c5d;
-  color: white;
-}
-
-.status-em-dia {
-  color: green;
-  font-weight: bold;
-}
-
-.status-vencido {
-  color: red;
-  font-weight: bold;
-}
-
-.status-devolvido {
-  color: gray;
-  font-weight: bold;
-}
-</style>
-</head>
-
-<body>
-
-<header>
-  <h1>NM SOLUCION - Controle de Chaves</h1>
-</header>
-
-<div class="container">
-
-  <div class="card">
-    <h3>Empréstimo de Chave</h3>
-    <input id="nome" placeholder="Nome">
-    <input id="empresa" placeholder="Empresa">
-    <input id="funcao" placeholder="Função">
-    <input id="chave" placeholder="Chave">
-    <button onclick="emprestar()">Emprestar</button>
-  </div>
-
-  <div class="card">
-    <h3>Controle</h3>
-    <table>
-      <thead>
-        <tr>
-          <th>Nome</th>
-          <th>Empresa</th>
-          <th>Função</th>
-          <th>Chave</th>
-          <th>Status</th>
-          <th>Ações</th>
-        </tr>
-      </thead>
-      <tbody id="tabela"></tbody>
-    </table>
-  </div>
-
-</div>
-
-<script>
-let dados = [];
-
-async function carregar() {
-  const res = await fetch('/dados');
-  dados = await res.json();
-  render();
-}
-
-async function salvar() {
-  await fetch('/dados', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(dados)
-  });
-  render();
-}
-
-function emprestar() {
-  if (!nome.value || !empresa.value || !funcao.value || !chave.value) {
-    alert('Preencha todos os campos');
-    return;
-  }
-
-  dados.push({
-    nome: nome.value,
-    empresa: empresa.value,
-    funcao: funcao.value,
-    chave: chave.value,
-    data: new Date().toISOString(),
-    devolvido: false
-  });
-
-  nome.value = '';
-  empresa.value = '';
-  funcao.value = '';
-  chave.value = '';
-
-  salvar();
-}
-
-function devolver(i) {
-  dados[i].devolvido = true;
-  salvar();
-}
-
-function render() {
-  tabela.innerHTML = '';
-
-  dados.forEach((d, i) => {
-    const dt = new Date(d.data);
-    const prazo = new Date(dt.getTime() + 48 * 60 * 60 * 1000);
-    const vencido = !d.devolvido && new Date() > prazo;
-
-    let status = 'EM DIA';
-    let classe = 'status-em-dia';
-
-    if (d.devolvido) {
-      status = 'DEVOLVIDO';
-      classe = 'status-devolvido';
-    } else if (vencido) {
-      status = 'VENCIDO';
-      classe = 'status-vencido';
-    }
-
-    tabela.innerHTML += `
-      <tr>
-        <td>${d.nome}</td>
-        <td>${d.empresa}</td>
-        <td>${d.funcao}</td>
-        <td>${d.chave}</td>
-        <td class="${classe}">${status}</td>
-        <td>
-          ${d.devolvido ? '' : `<button onclick="devolver(${i})">Devolver</button>`}
-        </td>
-      </tr>
-    `;
-  });
-}
-
-carregar();
-</script>
-
-</body>
-</html>
