@@ -158,7 +158,7 @@ tr:hover {
 // ✅ 🔥 SUA CONEXÃO SUPABASE
 const supabase = supabase.createClient(
   "https://aorhhnlktnmwyknxmyyzo.supabase.co",
-  "COLE_AQUI_SUA_publishable_key"
+  "sb_publishable_bHKdmfZVsPUeQtkCa5tnw_PaNcpxxx"
 );
 
 const SENHA_LOGIN = "NMDIGITAL";
