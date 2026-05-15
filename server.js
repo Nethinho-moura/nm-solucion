@@ -1,5 +1,4 @@
 import express from "express";
-
 const app = express();
 
 app.get("/", (req, res) => {
@@ -10,6 +9,11 @@ res.send(`
 <meta charset="UTF-8">
 <title>NM SOLUCION</title>
 
+<!-- ✅ FIREBASE -->
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+
+<!-- PDF -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 
 <style>
@@ -83,6 +87,10 @@ th {
   background:#0b3c5d;
   color:white;
 }
+
+tr:hover {
+  background:#dfe9f3;
+}
 </style>
 </head>
 
@@ -121,7 +129,6 @@ th {
   <button onclick="pdfGeral()">PDF Geral</button>
 </div>
 
-<!-- ✅ BACKUP -->
 <div class="card">
   <button onclick="backup()">💾 Fazer Backup</button>
   <input type="file" onchange="restaurar(event)">
@@ -147,31 +154,48 @@ th {
 </div>
 
 <script>
+
+const firebaseConfig = {
+  apiKey: "AIzaSyC--ryk4Y2l_1zMWPCEcHffpsYI_zv9_s8",
+  authDomain: "nm-solucion.firebaseapp.com",
+  projectId: "nm-solucion"
+};
+
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+
 const SENHA_LOGIN = "NMDIGITAL";
 const SENHA_EXCLUIR = "2805";
 
-let dados = JSON.parse(localStorage.getItem("dados")||"[]");
+let dados = [];
 
 function entrar(){
   if(senhaLogin.value===SENHA_LOGIN){
     login.style.display="none";
     sistema.style.display="block";
+    carregar();
+  }
+}
+
+// 🔥 CARREGA EM TEMPO REAL
+function carregar(){
+  db.collection("chaves").onSnapshot(snapshot=>{
+    dados = [];
+    snapshot.forEach(doc=>{
+      dados.push({...doc.data(), id:doc.id});
+    });
     render();
-  } else alert("Senha errada");
+  });
 }
 
-function salvar(){
-  localStorage.setItem("dados", JSON.stringify(dados));
-  render();
-}
-
-function emprestar(){
+// ✅ EMPRESTAR
+async function emprestar(){
   if(!nome.value || !empresa.value || !funcao.value || !chave.value || !motivo.value){
     alert("Preencha tudo");
     return;
   }
 
-  dados.push({
+  await db.collection("chaves").add({
     nome:nome.value,
     empresa:empresa.value,
     funcao:funcao.value,
@@ -186,47 +210,36 @@ function emprestar(){
   funcao.value="";
   chave.value="";
   motivo.value="";
-
-  salvar();
 }
 
-function devolver(i){
-  dados[i].devolvido=true;
-  salvar();
+// ✅ DEVOLVER
+async function devolver(id){
+  await db.collection("chaves").doc(id).update({devolvido:true});
 }
 
-function excluir(i){
+// ✅ EXCLUIR
+async function excluir(id){
   let senha=prompt("Senha:");
   if(senha===SENHA_EXCLUIR){
-    dados.splice(i,1);
-    salvar();
-  } else alert("Errada");
+    await db.collection("chaves").doc(id).delete();
+  }
 }
 
-function formatarData(d){
-  return new Date(d).toLocaleDateString("pt-BR");
-}
-
+// ✅ RENDER
 function render(){
   tabela.innerHTML="";
   let agora = new Date();
 
-  dados.forEach((d,i)=>{
-    let prazo = new Date(new Date(d.data).getTime()+48*60*60*1000);
+  dados.forEach(d=>{
+    let data = new Date(d.data.seconds*1000);
+    let prazo = new Date(data.getTime()+48*60*60*1000);
 
     let status="";
     let cor="";
 
-    if(d.devolvido){
-      status="DEVOLVIDO";
-      cor="gray";
-    } else if(agora>prazo){
-      status="VENCIDO";
-      cor="red";
-    } else {
-      status="EM DIA";
-      cor="green";
-    }
+    if(d.devolvido){status="DEVOLVIDO"; cor="gray";}
+    else if(agora>prazo){status="VENCIDO"; cor="red";}
+    else{status="EM DIA"; cor="green";}
 
     tabela.innerHTML += \`
     <tr>
@@ -236,64 +249,51 @@ function render(){
       <td>\${d.chave}</td>
       <td style="color:\${cor}; font-weight:bold;">\${status}</td>
       <td>
-        \${!d.devolvido ? '<button onclick="devolver('+i+')">Devolver</button>' : ""}
-        <button onclick="excluir(\${i})">Excluir</button>
+        <button onclick="devolver('\${d.id}')">Devolver</button>
+        <button onclick="excluir('\${d.id}')">Excluir</button>
       </td>
     </tr>\`;
   });
 }
 
-/* ✅ BACKUP */
+/* BACKUP e PDF ficam iguais */
 function backup(){
-  const blob = new Blob([JSON.stringify(dados, null, 2)], {type:"application/json"});
+  const blob = new Blob([JSON.stringify(dados,null,2)],{type:"application/json"});
   const link = document.createElement("a");
   link.href = URL.createObjectURL(blob);
-  link.download = "backup_nm_solucion.json";
+  link.download = "backup.json";
   link.click();
 }
 
-/* ✅ RESTAURAR */
-function restaurar(event){
-  const file = event.target.files[0];
-  if(!file) return;
-
+function restaurar(e){
+  const file = e.target.files[0];
   const reader = new FileReader();
-  reader.onload = e=>{
-    dados = JSON.parse(e.target.result);
-    salvar();
-    alert("Backup restaurado com sucesso!");
+  reader.onload = async ev=>{
+    let lista = JSON.parse(ev.target.result);
+    for(let item of lista){
+      delete item.id;
+      await db.collection("chaves").add(item);
+    }
+    alert("Restaurado!");
   };
-
   reader.readAsText(file);
 }
 
-/* PDF */
 function pdfGeral(){
   const { jsPDF } = window.jspdf;
-  const doc = new jsPDF();
+  let doc=new jsPDF();
   let y=10;
 
-  doc.text("RELATÓRIO GERAL",10,y);
-  y+=10;
-
   dados.forEach(d=>{
-    let emp=new Date(d.data);
-    let venc=new Date(emp.getTime()+48*60*60*1000);
+    let data=new Date(d.data.seconds*1000);
+    let venc=new Date(data.getTime()+48*60*60*1000);
 
-    doc.text("------------------------------------------------",10,y); y+=5;
-
-    doc.text(
-      d.nome+" | Empresa: "+d.empresa+" | Função: "+d.funcao+" | Chave: "+d.chave+" | Motivo: "+d.motivo,
-      10,y
-    );
+    doc.text(d.nome+" | "+d.empresa+" | "+d.funcao+" | "+d.chave+" | "+d.motivo,10,y);
     y+=6;
-
-    doc.text(
-      "Emprestado: "+formatarData(emp)+" | Vence: "+formatarData(venc),
-      10,y
-    );
-
-    y+=10;
+    doc.text("Emprestado: "+data.toLocaleDateString()+" | Vence: "+venc.toLocaleDateString(),10,y);
+    y+=6;
+    doc.line(10,y,200,y);
+    y+=6;
   });
 
   window.open(doc.output("bloburl"));
@@ -301,38 +301,25 @@ function pdfGeral(){
 
 function pdfAtrasados(){
   const { jsPDF } = window.jspdf;
-  const doc = new jsPDF();
+  let doc=new jsPDF();
   let y=10;
   let agora=new Date();
 
-  doc.text("ATRASADOS",10,y);
-  y+=10;
-
   dados.forEach(d=>{
-    let emp=new Date(d.data);
-    let venc=new Date(emp.getTime()+48*60*60*1000);
+    let data=new Date(d.data.seconds*1000);
+    let venc=new Date(data.getTime()+48*60*60*1000);
 
     if(!d.devolvido && agora>venc){
-
-      doc.text("------------------------------------------------",10,y); y+=5;
-
-      doc.text(
-        d.nome+" | Empresa: "+d.empresa+" | Função: "+d.funcao+" | Chave: "+d.chave+" | Motivo: "+d.motivo,
-        10,y
-      );
+      doc.text(d.nome+" | "+d.empresa+" | "+d.chave,10,y);
       y+=6;
-
-      doc.text(
-        "Emprestado: "+formatarData(emp)+" | Vence: "+formatarData(venc),
-        10,y
-      );
-
-      y+=10;
+      doc.line(10,y,200,y);
+      y+=6;
     }
   });
 
   window.open(doc.output("bloburl"));
 }
+
 </script>
 
 </body>
@@ -341,4 +328,3 @@ function pdfAtrasados(){
 });
 
 app.listen(process.env.PORT || 3000);
-``
