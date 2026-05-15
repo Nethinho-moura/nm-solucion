@@ -10,7 +10,8 @@ res.send(`
 <meta charset="UTF-8">
 <title>NM SOLUCION</title>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<!-- SUPABASE -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
 <style>
 body {
@@ -83,6 +84,10 @@ th {
   background:#0b3c5d;
   color:white;
 }
+
+tr:hover {
+  background:#dfe9f3;
+}
 </style>
 </head>
 
@@ -105,7 +110,7 @@ th {
     <input id="nome" placeholder="Nome">
     <input id="empresa" placeholder="Empresa">
     <input id="funcao" placeholder="Função">
-    <input id="chave" placeholder="Chave / Apartamento">
+    <input id="chave" placeholder="Chave">
     <select id="motivo">
       <option value="">Motivo</option>
       <option>Perda</option>
@@ -114,17 +119,6 @@ th {
   </div>
   <br>
   <button onclick="emprestar()">Emprestar</button>
-</div>
-
-<div class="card">
-  <button onclick="pdfAtrasados()">PDF Atrasados</button>
-  <button onclick="pdfGeral()">PDF Geral</button>
-</div>
-
-<!-- ✅ BACKUP -->
-<div class="card">
-  <button onclick="backup()">💾 Fazer Backup</button>
-  <input type="file" onchange="restaurar(event)">
 </div>
 
 <div class="card">
@@ -147,31 +141,41 @@ th {
 </div>
 
 <script>
+
+// 🔥 COLE SUAS CHAVES AQUI
+const supabase = window.supabase.createClient(
+  "COLE_SUA_URL_AQUI",
+  "COLE_SUA_ANON_KEY_AQUI"
+);
+
 const SENHA_LOGIN = "NMDIGITAL";
 const SENHA_EXCLUIR = "2805";
 
-let dados = JSON.parse(localStorage.getItem("dados")||"[]");
+let dados = [];
 
 function entrar(){
   if(senhaLogin.value===SENHA_LOGIN){
     login.style.display="none";
     sistema.style.display="block";
-    render();
-  } else alert("Senha errada");
+    carregar();
+  } else alert("Senha incorreta");
 }
 
-function salvar(){
-  localStorage.setItem("dados", JSON.stringify(dados));
+// ✅ CARREGAR
+async function carregar(){
+  const { data } = await supabase.from("chaves").select("*");
+  dados = data;
   render();
 }
 
-function emprestar(){
+// ✅ EMPRESTAR
+async function emprestar(){
   if(!nome.value || !empresa.value || !funcao.value || !chave.value || !motivo.value){
     alert("Preencha tudo");
     return;
   }
 
-  dados.push({
+  await supabase.from("chaves").insert([{
     nome:nome.value,
     empresa:empresa.value,
     funcao:funcao.value,
@@ -179,54 +183,52 @@ function emprestar(){
     motivo:motivo.value,
     data:new Date(),
     devolvido:false
-  });
+  }]);
 
+  // limpa campos ✅
   nome.value="";
   empresa.value="";
   funcao.value="";
   chave.value="";
   motivo.value="";
 
-  salvar();
+  carregar();
 }
 
-function devolver(i){
-  dados[i].devolvido=true;
-  salvar();
+// ✅ DEVOLVER
+async function devolver(id){
+  await supabase.from("chaves")
+  .update({devolvido:true})
+  .eq("id",id);
+
+  carregar();
 }
 
-function excluir(i){
-  let senha=prompt("Senha:");
+// ✅ EXCLUIR
+async function excluir(id){
+  let senha = prompt("Senha:");
   if(senha===SENHA_EXCLUIR){
-    dados.splice(i,1);
-    salvar();
-  } else alert("Errada");
+    await supabase.from("chaves")
+    .delete()
+    .eq("id",id);
+
+    carregar();
+  }
 }
 
-function formatarData(d){
-  return new Date(d).toLocaleDateString("pt-BR");
-}
-
+// ✅ TABELA
 function render(){
   tabela.innerHTML="";
   let agora = new Date();
 
-  dados.forEach((d,i)=>{
-    let prazo = new Date(new Date(d.data).getTime()+48*60*60*1000);
+  dados.forEach(d=>{
+    let data = new Date(d.data);
+    let prazo = new Date(data.getTime()+48*60*60*1000);
 
-    let status="";
-    let cor="";
-
-    if(d.devolvido){
-      status="DEVOLVIDO";
-      cor="gray";
-    } else if(agora>prazo){
-      status="VENCIDO";
-      cor="red";
-    } else {
-      status="EM DIA";
-      cor="green";
-    }
+    let status="", cor="";
+    if(d.devolvido){ status="DEVOLVIDO"; cor="gray";}
+    else if(agora>prazo){ status="VENCIDO"; cor="red";}
+    else{ status="EM DIA"; cor="green";}
 
     tabela.innerHTML += \`
     <tr>
@@ -234,105 +236,15 @@ function render(){
       <td>\${d.empresa}</td>
       <td>\${d.funcao}</td>
       <td>\${d.chave}</td>
-      <td style="color:\${cor}; font-weight:bold;">\${status}</td>
+      <td style="color:\${cor};font-weight:bold;">\${status}</td>
       <td>
-        \${!d.devolvido ? '<button onclick="devolver('+i+')">Devolver</button>' : ""}
-        <button onclick="excluir(\${i})">Excluir</button>
+        <button onclick="devolver(\${d.id})">Devolver</button>
+        <button onclick="excluir(\${d.id})">Excluir</button>
       </td>
     </tr>\`;
   });
 }
 
-/* ✅ BACKUP */
-function backup(){
-  const blob = new Blob([JSON.stringify(dados, null, 2)], {type:"application/json"});
-  const link = document.createElement("a");
-  link.href = URL.createObjectURL(blob);
-  link.download = "backup_nm_solucion.json";
-  link.click();
-}
-
-/* ✅ RESTAURAR */
-function restaurar(event){
-  const file = event.target.files[0];
-  if(!file) return;
-
-  const reader = new FileReader();
-  reader.onload = e=>{
-    dados = JSON.parse(e.target.result);
-    salvar();
-    alert("Backup restaurado com sucesso!");
-  };
-
-  reader.readAsText(file);
-}
-
-/* PDF */
-function pdfGeral(){
-  const { jsPDF } = window.jspdf;
-  const doc = new jsPDF();
-  let y=10;
-
-  doc.text("RELATÓRIO GERAL",10,y);
-  y+=10;
-
-  dados.forEach(d=>{
-    let emp=new Date(d.data);
-    let venc=new Date(emp.getTime()+48*60*60*1000);
-
-    doc.text("------------------------------------------------",10,y); y+=5;
-
-    doc.text(
-      d.nome+" | Empresa: "+d.empresa+" | Função: "+d.funcao+" | Chave: "+d.chave+" | Motivo: "+d.motivo,
-      10,y
-    );
-    y+=6;
-
-    doc.text(
-      "Emprestado: "+formatarData(emp)+" | Vence: "+formatarData(venc),
-      10,y
-    );
-
-    y+=10;
-  });
-
-  window.open(doc.output("bloburl"));
-}
-
-function pdfAtrasados(){
-  const { jsPDF } = window.jspdf;
-  const doc = new jsPDF();
-  let y=10;
-  let agora=new Date();
-
-  doc.text("ATRASADOS",10,y);
-  y+=10;
-
-  dados.forEach(d=>{
-    let emp=new Date(d.data);
-    let venc=new Date(emp.getTime()+48*60*60*1000);
-
-    if(!d.devolvido && agora>venc){
-
-      doc.text("------------------------------------------------",10,y); y+=5;
-
-      doc.text(
-        d.nome+" | Empresa: "+d.empresa+" | Função: "+d.funcao+" | Chave: "+d.chave+" | Motivo: "+d.motivo,
-        10,y
-      );
-      y+=6;
-
-      doc.text(
-        "Emprestado: "+formatarData(emp)+" | Vence: "+formatarData(venc),
-        10,y
-      );
-
-      y+=10;
-    }
-  });
-
-  window.open(doc.output("bloburl"));
-}
 </script>
 
 </body>
@@ -341,4 +253,3 @@ function pdfAtrasados(){
 });
 
 app.listen(process.env.PORT || 3000);
-``
