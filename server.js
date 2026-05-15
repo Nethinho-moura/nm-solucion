@@ -3,12 +3,307 @@ import express from "express";
 const app = express();
 
 app.get("/", (req, res) => {
-  res.send("API funcionando");
+  res.send(`
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+<meta charset="UTF-8">
+<title>NM SOLUCION - Controle de Chaves</title>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+<style>
+body {
+  font-family: Arial, sans-serif;
+  background: linear-gradient(135deg, #0b3c5d, #1f6fa5);
+  margin: 0;
+}
+#login {
+  width: 350px;
+  margin: 120px auto;
+  background: white;
+  padding: 25px;
+  border-radius: 10px;
+  text-align: center;
+}
+#login input, #login button {
+  width: 100%;
+  padding: 10px;
+  margin-top: 10px;
+}
+#login button {
+  background: #0b3c5d;
+  color: white;
+  border: none;
+  cursor: pointer;
+}
+header {
+  background: #0b3c5d;
+  color: white;
+  padding: 15px;
+  text-align: center;
+}
+.container {
+  padding: 20px;
+  background: #eef2f7;
+  min-height: 100vh;
+}
+.card {
+  background: white;
+  padding: 15px;
+  margin-bottom: 15px;
+  border-radius: 8px;
+}
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px,1fr));
+  gap: 10px;
+}
+input, select, button {
+  padding: 8px;
+  width: 100%;
+}
+button {
+  background: #0b3c5d;
+  color: white;
+  border: none;
+  cursor: pointer;
+}
+button:hover {
+  background: #155a87;
+}
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 10px;
+}
+th, td {
+  border: 1px solid #ccc;
+  padding: 8px;
+}
+th {
+  background: #0b3c5d;
+  color: white;
+}
+.status { font-weight: bold; }
+.emdia { color: green; }
+.vencido { color: red; }
+.devolvido { color: gray; }
+</style>
+</head>
+
+<body>
+
+<div id="login">
+  <h2>NM SOLUCION</h2>
+  <p>Controle de Chaves</p>
+  <input type="password" id="senhaLogin" placeholder="Senha de acesso">
+  <button onclick="entrar()">Entrar</button>
+</div>
+
+<div id="sistema" style="display:none;">
+<header>
+  <h1>NM SOLUCION - Controle de Chaves</h1>
+</header>
+
+<div class="container">
+
+<div class="card">
+  <h3>Empréstimo de Chave</h3>
+  <div class="form-grid">
+    <input id="nome" placeholder="Nome">
+    <input id="empresa" placeholder="Empresa">
+    <input id="funcao" placeholder="Função">
+    <input id="chave" placeholder="Chave">
+    <select id="motivo">
+      <option value="">Motivo</option>
+      <option value="Perda">Perda</option>
+      <option value="Serviço / Manutenção">Serviço / Manutenção</option>
+    </select>
+  </div>
+  <br>
+  <button onclick="emprestar()">Emprestar</button>
+</div>
+
+<div class="card">
+  <button onclick="pdfAtrasados()">PDF Atrasados</button>
+  <button onclick="pdfGeral()">PDF Geral</button>
+</div>
+
+<div class="card">
+  <button onclick="backup()">💾 Backup</button>
+  <input type="file" onchange="restaurar(event)">
+</div>
+
+<div class="card">
+  <h3>Controle</h3>
+  <table>
+    <thead>
+      <tr>
+        <th>Nome</th>
+        <th>Empresa</th>
+        <th>Função</th>
+        <th>Chave</th>
+        <th>Motivo</th>
+        <th>Status</th>
+        <th>Ações</th>
+      </tr>
+    </thead>
+    <tbody id="tabela"></tbody>
+  </table>
+</div>
+
+</div>
+</div>
+
+<script>
+const SENHA_LOGIN = "NMDIGITAL";
+const SENHA_EXCLUIR = "2805";
+
+let dados = JSON.parse(localStorage.getItem("dados") || "[]");
+
+function entrar() {
+  if (senhaLogin.value === SENHA_LOGIN) {
+    login.style.display = "none";
+    sistema.style.display = "block";
+    render();
+  } else {
+    alert("Senha incorreta");
+  }
+}
+
+function salvar() {
+  localStorage.setItem("dados", JSON.stringify(dados));
+  render();
+}
+
+function emprestar() {
+  if (!nome.value || !empresa.value || !funcao.value || !chave.value || !motivo.value) {
+    alert("Preencha todos os campos");
+    return;
+  }
+
+  dados.push({
+    nome: nome.value,
+    empresa: empresa.value,
+    funcao: funcao.value,
+    chave: chave.value,
+    motivo: motivo.value,
+    data: new Date().toISOString(),
+    devolvido: false
+  });
+
+  nome.value = empresa.value = funcao.value = chave.value = "";
+  motivo.value = "";
+  salvar();
+}
+
+function devolver(i) {
+  dados[i].devolvido = true;
+  salvar();
+}
+
+function excluir(i) {
+  const senha = prompt("Senha mestre:");
+  if (senha === SENHA_EXCLUIR) {
+    dados.splice(i,1);
+    salvar();
+  } else {
+    alert("Senha incorreta");
+  }
+}
+
+function render() {
+  tabela.innerHTML = "";
+  let agora = new Date();
+
+  dados.forEach((d,i) => {
+    let prazo = new Date(new Date(d.data).getTime() + 48*60*60*1000);
+    let vencido = !d.devolvido && agora > prazo;
+
+    let status = d.devolvido ? "DEVOLVIDO" : (vencido ? "VENCIDO" : "EM DIA");
+    let classe = d.devolvido ? "devolvido" : (vencido ? "vencido" : "emdia");
+
+    tabela.innerHTML += \`
+      <tr>
+        <td>\${d.nome}</td>
+        <td>\${d.empresa}</td>
+        <td>\${d.funcao}</td>
+        <td>\${d.chave}</td>
+        <td>\${d.motivo}</td>
+        <td class="status \${classe}">\${status}</td>
+        <td>
+          \${!d.devolvido ? '<button onclick="devolver('+i+')">Devolver</button>' : ""}
+          <button onclick="excluir(\${i})">Excluir</button>
+        </td>
+      </tr>\`;
+  });
+}
+
+function backup() {
+  const blob = new Blob([JSON.stringify(dados)], {type: "application/json"});
+  const link = document.createElement("a");
+  link.href = URL.createObjectURL(blob);
+  link.download = "backup.json";
+  link.click();
+}
+
+function restaurar(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    dados = JSON.parse(e.target.result);
+    salvar();
+    alert("Restaurado!");
+  };
+  reader.readAsText(file);
+}
+
+function pdfAtrasados() {
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF();
+  let y = 10;
+  let agora = new Date();
+
+  doc.text("ATRASADOS", 10, y);
+  y+=10;
+
+  dados.forEach(d => {
+    let prazo = new Date(new Date(d.data).getTime() + 48*60*60*1000);
+    if (!d.devolvido && agora > prazo) {
+      doc.text(d.nome + " - " + d.chave, 10, y);
+      y+=6;
+    }
+  });
+
+  window.open(doc.output("bloburl"));
+}
+
+function pdfGeral() {
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF();
+  let y = 10;
+
+  doc.text("GERAL", 10, y);
+  y+=10;
+
+  dados.forEach(d => {
+    doc.text(d.nome + " - " + d.chave, 10, y);
+    y+=6;
+  });
+
+  window.open(doc.output("bloburl"));
+}
+</script>
+
+</body>
+</html>
+  `);
 });
 
 const PORT = process.env.PORT || 3000;
 
 app.listen(PORT, () => {
-  console.log(`Servidor rodando na porta ${PORT}`);
+  console.log("Rodando...");
 });
-
