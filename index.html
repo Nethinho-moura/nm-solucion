@@ -4,7 +4,6 @@
 <meta charset="UTF-8">
 <title>NM SOLUCION - Controle de Chaves</title>
 
-<!-- jsPDF -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 
 <style>
@@ -133,6 +132,11 @@ th {
 </div>
 
 <div class="card">
+  <button onclick="backup()">💾 Fazer Backup</button>
+  <input type="file" id="arquivoBackup" accept=".json" onchange="restaurar(event)">
+</div>
+
+<div class="card">
   <h3>Controle</h3>
   <table>
     <thead>
@@ -203,7 +207,7 @@ function devolver(i) {
 function excluir(i) {
   const senha = prompt("Digite a senha mestre:");
   if (senha === SENHA_EXCLUIR) {
-    dados.splice(i, 1);
+    dados.splice(i,1);
     salvar();
   } else {
     alert("Senha incorreta");
@@ -237,6 +241,29 @@ function render() {
   });
 }
 
+/* BACKUP */
+function backup() {
+  const blob = new Blob([JSON.stringify(dados, null, 2)], {type: "application/json"});
+  const link = document.createElement("a");
+  link.href = URL.createObjectURL(blob);
+  link.download = "backup_nm_solucion.json";
+  link.click();
+}
+
+/* RESTAURAR */
+function restaurar(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    dados = JSON.parse(e.target.result);
+    salvar();
+    alert("Backup restaurado com sucesso!");
+  };
+  reader.readAsText(file);
+}
+
+/* PDFs */
 function pdfAtrasados() {
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF();
