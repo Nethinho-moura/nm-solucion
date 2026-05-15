@@ -15,62 +15,17 @@ res.send(`
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 
 <style>
-body {
-  font-family: Arial;
-  background: linear-gradient(135deg,#0b3c5d,#1f6fa5);
-  margin:0;
-}
-#login {
-  width:300px;
-  margin:120px auto;
-  background:white;
-  padding:20px;
-  text-align:center;
-}
-header {
-  background:#0b3c5d;
-  color:white;
-  padding:10px;
-  text-align:center;
-}
-.container {
-  padding:20px;
-  background:#eef2f7;
-  min-height:100vh;
-}
-.card {
-  background:white;
-  padding:15px;
-  margin-bottom:15px;
-  border-radius:8px;
-}
-.form-grid {
-  display:grid;
-  grid-template-columns:repeat(auto-fit,minmax(180px,1fr));
-  gap:10px;
-}
-input,select,button {
-  padding:8px;
-  width:100%;
-}
-button {
-  background:#0b3c5d;
-  color:white;
-  border:none;
-  cursor:pointer;
-}
-table {
-  width:100%;
-  border-collapse:collapse;
-}
-th,td {
-  border:1px solid #ccc;
-  padding:8px;
-}
-th {
-  background:#0b3c5d;
-  color:white;
-}
+body {font-family: Arial;background:linear-gradient(135deg,#0b3c5d,#1f6fa5);margin:0;}
+#login {width:300px;margin:120px auto;background:white;padding:20px;text-align:center;}
+header {background:#0b3c5d;color:white;padding:10px;text-align:center;}
+.container {padding:20px;background:#eef2f7;min-height:100vh;}
+.card {background:white;padding:15px;margin-bottom:15px;border-radius:8px;}
+.form-grid {display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;}
+input,select,button{padding:8px;width:100%;}
+button{background:#0b3c5d;color:white;border:none;}
+table{width:100%;border-collapse:collapse;}
+th,td{border:1px solid #ccc;padding:8px;}
+th{background:#0b3c5d;color:white;}
 </style>
 </head>
 
@@ -78,7 +33,7 @@ th {
 
 <div id="login">
 <h2>NM SOLUCION</h2>
-<input type="password" id="senhaLogin" placeholder="Senha">
+<input id="senhaLogin" type="password" placeholder="Senha">
 <button onclick="entrar()">Entrar</button>
 </div>
 
@@ -109,15 +64,15 @@ th {
 </div>
 
 <div class="card">
+<button onclick="backup()">💾 Backup</button>
+<input type="file" onchange="restaurar(event)">
+</div>
+
+<div class="card">
 <table>
 <thead>
 <tr>
-<th>Nome</th>
-<th>Empresa</th>
-<th>Função</th>
-<th>Chave</th>
-<th>Status</th>
-<th>Ação</th>
+<th>Nome</th><th>Empresa</th><th>Função</th><th>Chave</th><th>Status</th><th>Ações</th>
 </tr>
 </thead>
 <tbody id="tabela"></tbody>
@@ -129,7 +84,6 @@ th {
 
 <script>
 
-// 🔥 FIREBASE
 const firebaseConfig = {
   apiKey: "AIzaSyC--ryk4Y2l_1zMWPCEcHffpsYI_zv9_s8",
   authDomain: "nm-solucion.firebaseapp.com",
@@ -139,21 +93,20 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
 
-const SENHA_LOGIN = "NMDIGITAL";
-const SENHA_EXCLUIR = "2805";
+const SENHA_LOGIN="NMDIGITAL";
+const SENHA_EXCLUIR="2805";
 
-let dados = [];
+let dados=[];
 
-// LOGIN
 function entrar(){
-  if(senhaLogin.value==="NMDIGITAL"){
+  if(senhaLogin.value===SENHA_LOGIN){
     login.style.display="none";
     sistema.style.display="block";
     carregar();
-  } else alert("Senha incorreta");
+  }
 }
 
-// CARREGAR DADOS (tempo real)
+// 🔥 CARREGA DADOS TEMPO REAL
 function carregar(){
   db.collection("chaves").onSnapshot(snapshot=>{
     dados=[];
@@ -164,7 +117,7 @@ function carregar(){
   });
 }
 
-// EMPRESTAR
+// ✅ EMPRESTAR + LIMPAR CAMPOS
 async function emprestar(){
   if(!nome.value||!empresa.value||!funcao.value||!chave.value||!motivo.value){
     alert("Preencha tudo"); return;
@@ -180,24 +133,27 @@ async function emprestar(){
     devolvido:false
   });
 
-  nome.value=empresa.value=funcao.value=chave.value="";
+  nome.value="";
+  empresa.value="";
+  funcao.value="";
+  chave.value="";
   motivo.value="";
 }
 
-// DEVOLVER
+// ✅ DEVOLVER
 async function devolver(id){
   await db.collection("chaves").doc(id).update({devolvido:true});
 }
 
-// EXCLUIR
+// ✅ EXCLUIR (CORRIGIDO)
 async function excluir(id){
-  let senha = prompt("Senha:");
+  let senha=prompt("Senha:");
   if(senha===SENHA_EXCLUIR){
     await db.collection("chaves").doc(id).delete();
   }
 }
 
-// STATUS + TABELA
+// ✅ STATUS
 function render(){
   tabela.innerHTML="";
   let agora=new Date();
@@ -206,9 +162,7 @@ function render(){
     let data=new Date(d.data.seconds*1000);
     let prazo=new Date(data.getTime()+48*60*60*1000);
 
-    let status="";
-    let cor="";
-
+    let status="", cor="";
     if(d.devolvido){status="DEVOLVIDO"; cor="gray";}
     else if(agora>prazo){status="VENCIDO"; cor="red";}
     else{status="EM DIA"; cor="green";}
@@ -221,14 +175,40 @@ function render(){
       <td>\${d.chave}</td>
       <td style="color:\${cor};font-weight:bold;">\${status}</td>
       <td>
-        \${!d.devolvido?'<button onclick="devolver(\\''+d.id+'\\')">Devolver</button>':""}
+        \${!d.devolvido?'<button onclick="devolver(\\''+d.id+'\\')">Devolver</button>':''}
         <button onclick="excluir(\\''+d.id+'\\')">Excluir</button>
       </td>
     </tr>\`;
   });
 }
 
-// ✅ RELATÓRIO ESTILO PLANILHA
+// ✅ BACKUP
+function backup(){
+  const blob=new Blob([JSON.stringify(dados,null,2)],{type:"application/json"});
+  const link=document.createElement("a");
+  link.href=URL.createObjectURL(blob);
+  link.download="backup.json";
+  link.click();
+}
+
+// ✅ RESTAURAR
+function restaurar(e){
+  const file=e.target.files[0];
+  const reader=new FileReader();
+
+  reader.onload=async ev=>{
+    const lista=JSON.parse(ev.target.result);
+    for(let item of lista){
+      delete item.id;
+      await db.collection("chaves").add(item);
+    }
+    alert("Restaurado!");
+  };
+
+  reader.readAsText(file);
+}
+
+// ✅ RELATORIO COMPLETO (NÃO BAIXA)
 function pdfGeral(){
   const { jsPDF } = window.jspdf;
   let doc=new jsPDF();
@@ -238,30 +218,29 @@ function pdfGeral(){
   y+=10;
 
   dados.forEach(d=>{
-    let emp=new Date(d.data.seconds*1000);
-    let venc=new Date(emp.getTime()+48*60*60*1000);
+    let data=new Date(d.data.seconds*1000);
+    let venc=new Date(data.getTime()+48*60*60*1000);
 
-    let texto =
-      d.nome+" | "+d.empresa+" | "+d.funcao+" | "+d.chave+" | "+d.motivo;
-
-    doc.text(texto,10,y);
+    doc.text(
+      d.nome+" | "+d.empresa+" | "+d.funcao+" | "+d.chave+" | "+d.motivo,
+      10,y
+    );
     y+=6;
 
     doc.text(
-      "Emprestado: "+emp.toLocaleDateString()+" | Vence: "+venc.toLocaleDateString(),
+      "Emprestado: "+data.toLocaleDateString()+" | Vence: "+venc.toLocaleDateString(),
       10,y
     );
 
     y+=6;
-
-    doc.line(10,y,200,y); // linha separadora
+    doc.line(10,y,200,y);
     y+=6;
   });
 
-  window.open(doc.output("bloburl")); // 🔥 NÃO BAIXA AUTOMATICO
+  window.open(doc.output("bloburl"));
 }
 
-// ATRASADOS
+// ✅ ATRASADOS
 function pdfAtrasados(){
   const { jsPDF } = window.jspdf;
   let doc=new jsPDF();
@@ -269,12 +248,11 @@ function pdfAtrasados(){
   let agora=new Date();
 
   dados.forEach(d=>{
-    let emp=new Date(d.data.seconds*1000);
-    let venc=new Date(emp.getTime()+48*60*60*1000);
+    let data=new Date(d.data.seconds*1000);
+    let venc=new Date(data.getTime()+48*60*60*1000);
 
     if(!d.devolvido && agora>venc){
-
-      doc.text(d.nome+" | "+d.empresa+" | "+d.funcao+" | "+d.chave,10,y);
+      doc.text(d.nome+" | "+d.empresa+" | "+d.chave,10,y);
       y+=6;
       doc.line(10,y,200,y);
       y+=6;
@@ -283,6 +261,7 @@ function pdfAtrasados(){
 
   window.open(doc.output("bloburl"));
 }
+
 </script>
 
 </body>
@@ -290,5 +269,4 @@ function pdfAtrasados(){
 `);
 });
 
-app.listen(process.env.PORT || 3000);
-``
+app.listen(process.env.PORT||3000);
