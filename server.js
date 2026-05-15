@@ -8,89 +8,27 @@ res.send(`
 <html lang="pt-br">
 <head>
 <meta charset="UTF-8">
-<title>NM SOLUCION</title>
+<title>NM SOLUCION - Controle de Chaves</title>
 
-<!-- ✅ SUPABASE -->
+<!-- ✅ SUPABASE CORRETO -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
 <!-- PDF -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 
 <style>
-body {
-  font-family: Arial;
-  background: linear-gradient(135deg, #0b3c5d, #1f6fa5);
-  margin: 0;
-}
-
-#login {
-  width: 300px;
-  margin: 120px auto;
-  background: white;
-  padding: 20px;
-  text-align: center;
-}
-
-header {
-  background:#0b3c5d;
-  color:white;
-  padding:10px;
-  text-align:center;
-}
-
-.container {
-  padding:20px;
-  background:#eef2f7;
-  min-height:100vh;
-}
-
-.card {
-  background:white;
-  padding:15px;
-  border-radius:8px;
-  margin-bottom:15px;
-}
-
-.form-grid {
-  display:grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px,1fr));
-  gap:10px;
-}
-
-input, select, button {
-  padding:8px;
-  width:100%;
-}
-
-button {
-  background:#0b3c5d;
-  color:white;
-  border:none;
-  cursor:pointer;
-}
-
-button:hover {
-  background:#155a87;
-}
-
-table {
-  width:100%;
-  border-collapse: collapse;
-}
-
-th, td {
-  border:1px solid #ccc;
-  padding:8px;
-}
-
-th {
-  background:#0b3c5d;
-  color:white;
-}
-
-tr:hover {
-  background:#dfe9f3;
-}
+body {font-family:Arial;background:linear-gradient(135deg,#0b3c5d,#1f6fa5);margin:0;}
+#login {width:350px;margin:120px auto;background:white;padding:25px;text-align:center;}
+header {background:#0b3c5d;color:white;padding:15px;text-align:center;}
+.container {padding:20px;background:#eef2f7;}
+.card {background:white;padding:15px;margin-bottom:15px;border-radius:8px;}
+.form-grid {display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px;}
+input, select, button {padding:8px;width:100%;}
+button {background:#0b3c5d;color:white;}
+button:hover {background:#155a87;}
+table {width:100%;border-collapse:collapse;}
+th, td {border:1px solid #ccc;padding:8px;}
+tr:hover {background:#dfe9f3;}
 </style>
 </head>
 
@@ -98,52 +36,46 @@ tr:hover {
 
 <div id="login">
   <h2>NM SOLUCION</h2>
-  <input type="password" id="senhaLogin" placeholder="Senha">
+  <input type="password" id="senhaLogin">
   <button onclick="entrar()">Entrar</button>
 </div>
 
 <div id="sistema" style="display:none;">
-
 <header><h2>Controle de Chaves</h2></header>
 
 <div class="container">
 
 <div class="card">
-  <div class="form-grid">
-    <input id="nome" placeholder="Nome">
-    <input id="empresa" placeholder="Empresa">
-    <input id="funcao" placeholder="Função">
-    <input id="chave" placeholder="Chave / Apartamento">
-    <select id="motivo">
-      <option value="">Motivo</option>
-      <option>Perda</option>
-      <option>Serviço</option>
-    </select>
-  </div>
-  <br>
-  <button onclick="emprestar()">Emprestar</button>
+<div class="form-grid">
+<input id="nome" placeholder="Nome">
+<input id="empresa" placeholder="Empresa">
+<input id="funcao" placeholder="Função">
+<input id="chave" placeholder="Chave">
+<select id="motivo">
+<option value="">Motivo</option>
+<option>Perda</option>
+<option>Serviço</option>
+</select>
+</div>
+<br>
+<button onclick="emprestar()">Emprestar</button>
 </div>
 
 <div class="card">
-  <button onclick="pdfAtrasados()">PDF Atrasados</button>
-  <button onclick="pdfGeral()">PDF Geral</button>
+<button onclick="pdfAtrasados()">Relatório Atrasados</button>
+<button onclick="pdfGeral()">Relatório Geral</button>
 </div>
 
 <div class="card">
-  <button onclick="backup()">💾 Fazer Backup</button>
-  <input type="file" onchange="restaurar(event)">
+<button onclick="backup()">💾 Backup</button>
+<input type="file" onchange="restaurar(event)">
 </div>
 
 <div class="card">
 <table>
 <thead>
 <tr>
-<th>Nome</th>
-<th>Empresa</th>
-<th>Função</th>
-<th>Chave</th>
-<th>Status</th>
-<th>Ações</th>
+<th>Nome</th><th>Empresa</th><th>Função</th><th>Chave</th><th>Status</th><th>Ações</th>
 </tr>
 </thead>
 <tbody id="tabela"></tbody>
@@ -155,16 +87,16 @@ tr:hover {
 
 <script>
 
-// ✅ 🔥 SUA CONEXÃO SUPABASE
-const supabase = supabase.createClient(
+// ✅ 🔥 CONEXÃO SUPABASE
+const supabase = window.supabase.createClient(
   "https://aorhhnlktnmwyknxmyyzo.supabase.co",
   "sb_publishable_bHKdmfZVsPUeQtkCa5tnw_PaNcpxxx"
 );
 
-const SENHA_LOGIN = "NMDIGITAL";
-const SENHA_EXCLUIR = "2805";
+const SENHA_LOGIN="NMDIGITAL";
+const SENHA_EXCLUIR="2805";
 
-let dados = [];
+let dados=[];
 
 // LOGIN
 function entrar(){
@@ -172,7 +104,7 @@ function entrar(){
     login.style.display="none";
     sistema.style.display="block";
     carregar();
-  }
+  }else alert("Senha incorreta");
 }
 
 // CARREGAR
@@ -184,9 +116,8 @@ async function carregar(){
 
 // EMPRESTAR
 async function emprestar(){
-  if(!nome.value || !empresa.value || !funcao.value || !chave.value || !motivo.value){
-    alert("Preencha tudo");
-    return;
+  if(!nome.value||!empresa.value||!funcao.value||!chave.value||!motivo.value){
+    alert("Preencha tudo"); return;
   }
 
   await supabase.from("chaves").insert([{
@@ -199,10 +130,7 @@ async function emprestar(){
     devolvido:false
   }]);
 
-  nome.value="";
-  empresa.value="";
-  funcao.value="";
-  chave.value="";
+  nome.value=empresa.value=funcao.value=chave.value="";
   motivo.value="";
 
   carregar();
@@ -213,7 +141,6 @@ async function devolver(id){
   await supabase.from("chaves")
     .update({devolvido:true})
     .eq("id",id);
-
   carregar();
 }
 
@@ -224,47 +151,32 @@ async function excluir(id){
     await supabase.from("chaves")
       .delete()
       .eq("id",id);
-
     carregar();
   }
-}
-
-// FORMATA DATA
-function formatarData(d){
-  return new Date(d).toLocaleDateString("pt-BR");
 }
 
 // RENDER
 function render(){
   tabela.innerHTML="";
-  let agora = new Date();
+  let agora=new Date();
 
-  dados.forEach((d)=>{
-    let data = new Date(d.data);
-    let prazo = new Date(data.getTime()+48*60*60*1000);
+  dados.forEach(d=>{
+    let prazo=new Date(new Date(d.data).getTime()+48*60*60*1000);
 
-    let status="", cor="";
+    let status="",cor="";
+    if(d.devolvido){status="DEVOLVIDO";cor="gray";}
+    else if(agora>prazo){status="VENCIDO";cor="red";}
+    else{status="EM DIA";cor="green";}
 
-    if(d.devolvido){
-      status="DEVOLVIDO";
-      cor="gray";
-    } else if(agora>prazo){
-      status="VENCIDO";
-      cor="red";
-    } else {
-      status="EM DIA";
-      cor="green";
-    }
-
-    tabela.innerHTML += \`
+    tabela.innerHTML+=\`
     <tr>
       <td>\${d.nome}</td>
       <td>\${d.empresa}</td>
       <td>\${d.funcao}</td>
       <td>\${d.chave}</td>
-      <td style="color:\${cor}; font-weight:bold;">\${status}</td>
+      <td style="color:\${cor}">\${status}</td>
       <td>
-        \${!d.devolvido ? '<button onclick="devolver('+d.id+')">Devolver</button>' : ""}
+        <button onclick="devolver(\${d.id})">Devolver</button>
         <button onclick="excluir(\${d.id})">Excluir</button>
       </td>
     </tr>\`;
@@ -273,27 +185,24 @@ function render(){
 
 // BACKUP
 function backup(){
-  const blob = new Blob([JSON.stringify(dados, null, 2)], {type:"application/json"});
-  const link = document.createElement("a");
-  link.href = URL.createObjectURL(blob);
-  link.download = "backup_nm_solucion.json";
+  const blob=new Blob([JSON.stringify(dados,null,2)],{type:"application/json"});
+  const link=document.createElement("a");
+  link.href=URL.createObjectURL(blob);
+  link.download="backup.json";
   link.click();
 }
 
 // RESTAURAR
 function restaurar(event){
-  const file = event.target.files[0];
-  if(!file) return;
+  const file=event.target.files[0];
+  const reader=new FileReader();
 
-  const reader = new FileReader();
-  reader.onload = async e=>{
-    let lista = JSON.parse(e.target.result);
-
+  reader.onload=async e=>{
+    let lista=JSON.parse(e.target.result);
     for(let item of lista){
       delete item.id;
       await supabase.from("chaves").insert([item]);
     }
-
     alert("Backup restaurado!");
     carregar();
   };
@@ -301,34 +210,15 @@ function restaurar(event){
   reader.readAsText(file);
 }
 
-// PDFS (igual ao seu)
+// PDF
 function pdfGeral(){
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF();
   let y=10;
 
-  doc.text("RELATÓRIO GERAL",10,y);
-  y+=10;
-
   dados.forEach(d=>{
-    let emp=new Date(d.data);
-    let venc=new Date(emp.getTime()+48*60*60*1000);
-
-    doc.text("------------------------------------------------",10,y); y+=5;
-
-    doc.text(
-      d.nome+" | Empresa: "+d.empresa+" | Função: "+d.funcao+" | Chave: "+d.chave+" | Motivo: "+d.motivo,
-      10,y
-    );
-
+    doc.text(d.nome+" | "+d.empresa+" | "+d.chave,10,y);
     y+=6;
-
-    doc.text(
-      "Emprestado: "+formatarData(emp)+" | Vence: "+formatarData(venc),
-      10,y
-    );
-
-    y+=10;
   });
 
   window.open(doc.output("bloburl"));
@@ -340,23 +230,11 @@ function pdfAtrasados(){
   let y=10;
   let agora=new Date();
 
-  doc.text("ATRASADOS",10,y);
-  y+=10;
-
   dados.forEach(d=>{
-    let emp=new Date(d.data);
-    let venc=new Date(emp.getTime()+48*60*60*1000);
-
-    if(!d.devolvido && agora>venc){
-
-      doc.text("------------------------------------------------",10,y); y+=5;
-
-      doc.text(
-        d.nome+" | Empresa: "+d.empresa+" | Função: "+d.funcao+" | Chave: "+d.chave,
-        10,y
-      );
-
-      y+=10;
+    let prazo=new Date(new Date(d.data).getTime()+48*60*60*1000);
+    if(!d.devolvido && agora>prazo){
+      doc.text(d.nome+" | "+d.chave,10,y);
+      y+=6;
     }
   });
 
@@ -371,4 +249,3 @@ function pdfAtrasados(){
 });
 
 app.listen(process.env.PORT || 3000);
-``
