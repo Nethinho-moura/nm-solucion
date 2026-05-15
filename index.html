@@ -10,17 +10,42 @@
 <style>
 body {
   font-family: Arial, sans-serif;
-  background: #eef2f7;
+  background: linear-gradient(135deg, #0b3c5d, #1f6fa5);
   margin: 0;
 }
+
+/* LOGIN */
+#login {
+  width: 350px;
+  margin: 120px auto;
+  background: white;
+  padding: 25px;
+  border-radius: 10px;
+  text-align: center;
+}
+#login input, #login button {
+  width: 100%;
+  padding: 10px;
+  margin-top: 10px;
+}
+#login button {
+  background: #0b3c5d;
+  color: white;
+  border: none;
+  cursor: pointer;
+}
+
+/* SISTEMA */
 header {
   background: #0b3c5d;
   color: white;
-  padding: 20px;
+  padding: 15px;
   text-align: center;
 }
 .container {
   padding: 20px;
+  background: #eef2f7;
+  min-height: 100vh;
 }
 .card {
   background: white;
@@ -28,9 +53,14 @@ header {
   margin-bottom: 15px;
   border-radius: 8px;
 }
-input, button {
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px,1fr));
+  gap: 10px;
+}
+input, select, button {
   padding: 8px;
-  margin: 5px;
+  width: 100%;
 }
 button {
   background: #0b3c5d;
@@ -39,7 +69,7 @@ button {
   cursor: pointer;
 }
 button:hover {
-  opacity: 0.9;
+  background: #155a87;
 }
 table {
   width: 100%;
@@ -54,18 +84,25 @@ th {
   background: #0b3c5d;
   color: white;
 }
-.status-em-dia {
-  color: green;
-  font-weight: bold;
-}
-.status-vencido {
-  color: red;
-  font-weight: bold;
-}
+.status { font-weight: bold; }
+.emdia { color: green; }
+.vencido { color: red; }
+.devolvido { color: gray; }
 </style>
 </head>
 
 <body>
+
+<!-- LOGIN -->
+<div id="login">
+  <h2>NM SOLUCION</h2>
+  <p>Controle de Chaves</p>
+  <input type="password" id="senhaLogin" placeholder="Senha de acesso">
+  <button onclick="entrar()">Entrar</button>
+</div>
+
+<!-- SISTEMA -->
+<div id="sistema" style="display:none;">
 
 <header>
   <h1>NM SOLUCION - Controle de Chaves</h1>
@@ -75,17 +112,24 @@ th {
 
 <div class="card">
   <h3>Empréstimo de Chave</h3>
-  <input id="nome" placeholder="Nome">
-  <input id="empresa" placeholder="Empresa">
-  <input id="funcao" placeholder="Função">
-  <input id="chave" placeholder="Chave">
+  <div class="form-grid">
+    <input id="nome" placeholder="Nome">
+    <input id="empresa" placeholder="Empresa">
+    <input id="funcao" placeholder="Função">
+    <input id="chave" placeholder="Chave">
+    <select id="motivo">
+      <option value="">Motivo do empréstimo</option>
+      <option value="Perda">Perda</option>
+      <option value="Serviço / Manutenção">Serviço / Manutenção</option>
+    </select>
+  </div>
+  <br>
   <button onclick="emprestar()">Emprestar</button>
 </div>
 
 <div class="card">
   <button onclick="pdfAtrasados()">Relatório Atrasados (PDF)</button>
   <button onclick="pdfGeral()">Relatório Geral (PDF)</button>
-  <button onclick="backupDados()">Backup dos Dados</button>
 </div>
 
 <div class="card">
@@ -97,7 +141,9 @@ th {
         <th>Empresa</th>
         <th>Função</th>
         <th>Chave</th>
+        <th>Motivo</th>
         <th>Status</th>
+        <th>Ações</th>
       </tr>
     </thead>
     <tbody id="tabela"></tbody>
@@ -105,9 +151,23 @@ th {
 </div>
 
 </div>
+</div>
 
 <script>
+const SENHA_LOGIN = "NMDIGITAL";
+const SENHA_EXCLUIR = "2805";
+
 let dados = JSON.parse(localStorage.getItem("dados") || "[]");
+
+function entrar() {
+  if (senhaLogin.value === SENHA_LOGIN) {
+    login.style.display = "none";
+    sistema.style.display = "block";
+    render();
+  } else {
+    alert("Senha incorreta");
+  }
+}
 
 function salvar() {
   localStorage.setItem("dados", JSON.stringify(dados));
@@ -115,7 +175,7 @@ function salvar() {
 }
 
 function emprestar() {
-  if (!nome.value || !empresa.value || !funcao.value || !chave.value) {
+  if (!nome.value || !empresa.value || !funcao.value || !chave.value || !motivo.value) {
     alert("Preencha todos os campos");
     return;
   }
@@ -125,113 +185,92 @@ function emprestar() {
     empresa: empresa.value,
     funcao: funcao.value,
     chave: chave.value,
+    motivo: motivo.value,
     data: new Date().toISOString(),
     devolvido: false
   });
 
   nome.value = empresa.value = funcao.value = chave.value = "";
+  motivo.value = "";
   salvar();
+}
+
+function devolver(i) {
+  dados[i].devolvido = true;
+  salvar();
+}
+
+function excluir(i) {
+  const senha = prompt("Digite a senha mestre:");
+  if (senha === SENHA_EXCLUIR) {
+    dados.splice(i, 1);
+    salvar();
+  } else {
+    alert("Senha incorreta");
+  }
 }
 
 function render() {
   tabela.innerHTML = "";
   let agora = new Date();
 
-  dados.forEach(d => {
-    let dataEmp = new Date(d.data);
-    let prazo = new Date(dataEmp.getTime() + 48 * 60 * 60 * 1000);
+  dados.forEach((d,i) => {
+    let prazo = new Date(new Date(d.data).getTime() + 48*60*60*1000);
     let vencido = !d.devolvido && agora > prazo;
 
-    let tr = document.createElement("tr");
-    tr.innerHTML = `
-      <td>${d.nome}</td>
-      <td>${d.empresa}</td>
-      <td>${d.funcao}</td>
-      <td>${d.chave}</td>
-      <td class="${vencido ? 'status-vencido' : 'status-em-dia'}">
-        ${vencido ? 'VENCIDO' : 'EM DIA'}
-      </td>
-    `;
-    tabela.appendChild(tr);
+    let status = d.devolvido ? "DEVOLVIDO" : (vencido ? "VENCIDO" : "EM DIA");
+    let classe = d.devolvido ? "devolvido" : (vencido ? "vencido" : "emdia");
+
+    tabela.innerHTML += `
+      <tr>
+        <td>${d.nome}</td>
+        <td>${d.empresa}</td>
+        <td>${d.funcao}</td>
+        <td>${d.chave}</td>
+        <td>${d.motivo}</td>
+        <td class="status ${classe}">${status}</td>
+        <td>
+          ${!d.devolvido ? `<button onclick="devolver(${i})">Devolver</button>` : ""}
+          <button onclick="excluir(${i})">Excluir</button>
+        </td>
+      </tr>`;
   });
 }
 
-/* ===== RELATÓRIO ATRASADOS PDF (SIMPLES) ===== */
 function pdfAtrasados() {
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF();
-  let y = 15;
+  let y = 10;
   let agora = new Date();
 
-  doc.setFontSize(12);
-  doc.text("NM SOLUCION - Relatório de Atrasados", 10, 10);
-  doc.setFontSize(9);
+  doc.text("NM SOLUCION - RELATÓRIO DE ATRASADOS", 10, y);
+  y += 10;
 
   dados.forEach(d => {
-    let dataEmp = new Date(d.data);
-    let prazo = new Date(dataEmp.getTime() + 48 * 60 * 60 * 1000);
-
+    let prazo = new Date(new Date(d.data).getTime() + 48*60*60*1000);
     if (!d.devolvido && agora > prazo) {
-      doc.text(
-        `${d.nome} | ${d.empresa} | ${d.funcao} | ${d.chave} | ${dataEmp.toLocaleDateString()}`,
-        10, y
-      );
+      doc.text(`${d.nome} | ${d.empresa} | ${d.chave} | ${d.motivo}`, 10, y);
       y += 6;
-      if (y > 280) { doc.addPage(); y = 15; }
     }
   });
-
-  doc.autoPrint();
   window.open(doc.output("bloburl"));
 }
 
-/* ===== RELATÓRIO GERAL PDF (SIMPLES) ===== */
 function pdfGeral() {
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF();
-  let y = 15;
+  let y = 10;
 
-  doc.setFontSize(12);
-  doc.text("NM SOLUCION - Relatório Geral", 10, 10);
-  doc.setFontSize(9);
+  doc.text("NM SOLUCION - RELATÓRIO GERAL", 10, y);
+  y += 10;
 
   dados.forEach(d => {
-    let status = d.devolvido ? "DEVOLVIDO" : "EM ABERTO";
-    doc.text(
-      `${d.nome} | ${d.empresa} | ${d.funcao} | ${d.chave} | ${status}`,
-      10, y
-    );
+    doc.text(`${d.nome} | ${d.empresa} | ${d.chave} | ${d.motivo}`, 10, y);
     y += 6;
-    if (y > 280) { doc.addPage(); y = 15; }
   });
-
-  doc.autoPrint();
   window.open(doc.output("bloburl"));
 }
-
-/* ===== BACKUP DOS DADOS ===== */
-function backupDados() {
-  let dadosBackup = localStorage.getItem("dados");
-
-  if (!dadosBackup || dadosBackup === "[]") {
-    alert("Não há dados para backup");
-    return;
-  }
-
-  let blob = new Blob([dadosBackup], { type: "application/json" });
-  let url = URL.createObjectURL(blob);
-
-  let a = document.createElement("a");
-  a.href = url;
-  a.download = "backup_nm_solucion.json";
-  a.click();
-
-  URL.revokeObjectURL(url);
-}
-
-render();
 </script>
 
 </body>
 </html>
-``
