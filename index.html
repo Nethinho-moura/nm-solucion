@@ -57,6 +57,7 @@ th {
 }
 .emdia { color: green; }
 .vencido { color: red; }
+.devolvido { color: gray; }
 </style>
 </head>
 
@@ -92,6 +93,7 @@ th {
         <th>Função</th>
         <th>Chave</th>
         <th>Status</th>
+        <th>Ações</th>
       </tr>
     </thead>
     <tbody id="tabela"></tbody>
@@ -127,16 +129,27 @@ function emprestar() {
   salvar();
 }
 
+function excluir(index) {
+  const senha = prompt("Digite a senha mestre para excluir:");
+  if (senha === "2805") {
+    dados.splice(index, 1);
+    salvar();
+  } else {
+    alert("Senha incorreta");
+  }
+}
+
 function render() {
   tabela.innerHTML = "";
   let agora = new Date();
 
-  dados.forEach(d => {
+  dados.forEach((d, index) => {
     let dataEmp = new Date(d.data);
     let prazo = new Date(dataEmp.getTime() + 48*60*60*1000);
     let vencido = !d.devolvido && agora > prazo;
 
     let status = d.devolvido ? "DEVOLVIDO" : (vencido ? "VENCIDO" : "EM DIA");
+    let classe = d.devolvido ? "devolvido" : (vencido ? "vencido" : "emdia");
 
     let tr = document.createElement("tr");
     tr.innerHTML = `
@@ -144,7 +157,10 @@ function render() {
       <td>${d.empresa}</td>
       <td>${d.funcao}</td>
       <td>${d.chave}</td>
-      <td class="status ${vencido ? 'vencido' : 'emdia'}">${status}</td>
+      <td class="status ${classe}">${status}</td>
+      <td>
+        <button onclick="excluir(${index})">Excluir</button>
+      </td>
     `;
     tabela.appendChild(tr);
   });
@@ -164,14 +180,11 @@ function pdfAtrasados() {
   dados.forEach(d => {
     let dataEmp = new Date(d.data);
     let prazo = new Date(dataEmp.getTime() + 48*60*60*1000);
-
     if (!d.devolvido && agora > prazo) {
       doc.text(`Nome: ${d.nome}`, 10, y); y+=5;
       doc.text(`Empresa: ${d.empresa}`, 10, y); y+=5;
       doc.text(`Função: ${d.funcao}`, 10, y); y+=5;
-      doc.text(`Chave: ${d.chave}`, 10, y); y+=5;
-      doc.text(`Data: ${dataEmp.toLocaleString()}`, 10, y); y+=8;
-      if (y > 270) { doc.addPage(); y = 10; }
+      doc.text(`Chave: ${d.chave}`, 10, y); y+=8;
     }
   });
 
@@ -192,14 +205,11 @@ function pdfGeral() {
   dados.forEach(d => {
     let dataEmp = new Date(d.data);
     let status = d.devolvido ? "DEVOLVIDO" : "EM ABERTO";
-
     doc.text(`Nome: ${d.nome}`, 10, y); y+=5;
     doc.text(`Empresa: ${d.empresa}`, 10, y); y+=5;
     doc.text(`Função: ${d.funcao}`, 10, y); y+=5;
     doc.text(`Chave: ${d.chave}`, 10, y); y+=5;
-    doc.text(`Status: ${status}`, 10, y); y+=5;
-    doc.text(`Data: ${dataEmp.toLocaleString()}`, 10, y); y+=8;
-    if (y > 270) { doc.addPage(); y = 10; }
+    doc.text(`Status: ${status}`, 10, y); y+=8;
   });
 
   doc.autoPrint();
