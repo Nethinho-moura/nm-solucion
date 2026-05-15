@@ -8,17 +8,17 @@ res.send(`
 <html lang="pt-br">
 <head>
 <meta charset="UTF-8">
-<title>NM SOLUCION</title>
+<title>NM SOLUCION - Controle de Chaves</title>
 
 <!-- ✅ SUPABASE CORRETO -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
-<!-- PDF -->
+<!-- ✅ PDF -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 
 <style>
 body {
-  font-family: Arial;
+  font-family: Arial, sans-serif;
   background: linear-gradient(135deg, #0b3c5d, #1f6fa5);
   margin: 0;
 }
@@ -28,60 +28,61 @@ body {
   margin: 120px auto;
   background: white;
   padding: 25px;
+  border-radius: 10px;
   text-align: center;
 }
 
 header {
-  background:#0b3c5d;
-  color:white;
-  padding:10px;
-  text-align:center;
+  background: #0b3c5d;
+  color: white;
+  padding: 15px;
+  text-align: center;
 }
 
 .container {
-  padding:20px;
-  background:#eef2f7;
+  padding: 20px;
+  background: #eef2f7;
 }
 
 .card {
-  background:white;
-  padding:15px;
-  margin-bottom:15px;
-  border-radius:8px;
+  background: white;
+  padding: 15px;
+  margin-bottom: 15px;
+  border-radius: 8px;
 }
 
 .form-grid {
-  display:grid;
-  grid-template-columns:repeat(auto-fit,minmax(200px,1fr));
-  gap:10px;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px,1fr));
+  gap: 10px;
 }
 
-input,select,button {
-  padding:8px;
-  width:100%;
+input, select, button {
+  padding: 8px;
+  width: 100%;
 }
 
 button {
-  background:#0b3c5d;
-  color:white;
+  background: #0b3c5d;
+  color: white;
 }
 
 button:hover {
-  background:#155a87;
+  background: #155a87;
 }
 
 table {
-  width:100%;
-  border-collapse:collapse;
+  width: 100%;
+  border-collapse: collapse;
 }
 
-th,td {
-  border:1px solid #ccc;
-  padding:8px;
+th, td {
+  border: 1px solid #ccc;
+  padding: 8px;
 }
 
 tr:hover {
-  background:#dfe9f3;
+  background: #dfe9f3;
 }
 </style>
 </head>
@@ -96,7 +97,9 @@ tr:hover {
 
 <div id="sistema" style="display:none;">
 
-<header><h2>Controle de Chaves</h2></header>
+<header>
+  <h2>Controle de Chaves</h2>
+</header>
 
 <div class="container">
 
@@ -117,10 +120,25 @@ tr:hover {
 </div>
 
 <div class="card">
+<button onclick="pdfAtrasados()">PDF Atrasados</button>
+<button onclick="pdfGeral()">PDF Geral</button>
+</div>
+
+<div class="card">
+<button onclick="backup()">💾 Backup</button>
+<input type="file" onchange="restaurar(event)">
+</div>
+
+<div class="card">
 <table>
 <thead>
 <tr>
-<th>Nome</th><th>Empresa</th><th>Função</th><th>Chave</th><th>Status</th><th>Ações</th>
+<th>Nome</th>
+<th>Empresa</th>
+<th>Função</th>
+<th>Chave</th>
+<th>Status</th>
+<th>Ações</th>
 </tr>
 </thead>
 <tbody id="tabela"></tbody>
@@ -132,13 +150,12 @@ tr:hover {
 
 <script>
 
-// ✅ CONEXÃO SUPABASE (SUA)
+// ✅ 🔥 CONEXÃO SUPABASE
 const supabase = window.supabase.createClient(
   "https://aorhhnlktnmwyknxmyyzo.supabase.co",
   "sb_publishable_bHKdmfZVsPUeQtkCa5tnw_PaNcpxxx"
 );
 
-// SENHAS
 const SENHA_LOGIN = "NMDIGITAL";
 const SENHA_EXCLUIR = "2805";
 
@@ -147,15 +164,15 @@ let dados = [];
 // LOGIN
 function entrar(){
   if(senhaLogin.value === SENHA_LOGIN){
-    login.style.display="none";
-    sistema.style.display="block";
+    login.style.display = "none";
+    sistema.style.display = "block";
     carregar();
   } else {
     alert("Senha incorreta");
   }
 }
 
-// CARREGAR DADOS
+// CARREGAR
 async function carregar(){
   const { data } = await supabase.from("chaves").select("*");
   dados = data || [];
@@ -190,7 +207,6 @@ async function devolver(id){
   await supabase.from("chaves")
     .update({devolvido:true})
     .eq("id", id);
-
   carregar();
 }
 
@@ -201,7 +217,6 @@ async function excluir(id){
     await supabase.from("chaves")
       .delete()
       .eq("id", id);
-
     carregar();
   }
 }
@@ -214,10 +229,8 @@ function render(){
   dados.forEach(d=>{
     let prazo = new Date(new Date(d.data).getTime() + 48*60*60*1000);
 
-    let status="", cor="";
-    if(d.devolvido){status="DEVOLVIDO"; cor="gray";}
-    else if(agora > prazo){status="VENCIDO"; cor="red";}
-    else{status="EM DIA"; cor="green";}
+    let status = d.devolvido ? "DEVOLVIDO" : (agora > prazo ? "VENCIDO" : "EM DIA");
+    let cor = d.devolvido ? "gray" : (agora > prazo ? "red" : "green");
 
     tabela.innerHTML += \`
     <tr>
@@ -234,6 +247,64 @@ function render(){
   });
 }
 
+// BACKUP
+function backup(){
+  const blob = new Blob([JSON.stringify(dados,null,2)],{type:"application/json"});
+  const link = document.createElement("a");
+  link.href = URL.createObjectURL(blob);
+  link.download = "backup.json";
+  link.click();
+}
+
+// RESTAURAR
+function restaurar(event){
+  const file = event.target.files[0];
+  const reader = new FileReader();
+
+  reader.onload = async e=>{
+    let lista = JSON.parse(e.target.result);
+    for(let item of lista){
+      delete item.id;
+      await supabase.from("chaves").insert([item]);
+    }
+    alert("Backup restaurado!");
+    carregar();
+  };
+
+  reader.readAsText(file);
+}
+
+// PDFs
+function pdfGeral(){
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF();
+  let y=10;
+
+  dados.forEach(d=>{
+    doc.text(d.nome + " | " + d.empresa + " | " + d.chave,10,y);
+    y+=6;
+  });
+
+  window.open(doc.output("bloburl"));
+}
+
+function pdfAtrasados(){
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF();
+  let y=10;
+  let agora=new Date();
+
+  dados.forEach(d=>{
+    let prazo = new Date(new Date(d.data).getTime()+48*60*60*1000);
+    if(!d.devolvido && agora>prazo){
+      doc.text(d.nome + " | " + d.chave,10,y);
+      y+=6;
+    }
+  });
+
+  window.open(doc.output("bloburl"));
+}
+
 </script>
 
 </body>
@@ -242,4 +313,3 @@ function render(){
 });
 
 app.listen(process.env.PORT || 3000);
-``
