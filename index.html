@@ -4,6 +4,9 @@
 <meta charset="UTF-8">
 <title>NM SOLUCION - Controle de Chaves</title>
 
+<!-- ✅ SUPABASE -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 
 <style>
@@ -12,8 +15,6 @@ body {
   background: linear-gradient(135deg, #0b3c5d, #1f6fa5);
   margin: 0;
 }
-
-/* LOGIN */
 #login {
   width: 350px;
   margin: 120px auto;
@@ -22,19 +23,6 @@ body {
   border-radius: 10px;
   text-align: center;
 }
-#login input, #login button {
-  width: 100%;
-  padding: 10px;
-  margin-top: 10px;
-}
-#login button {
-  background: #0b3c5d;
-  color: white;
-  border: none;
-  cursor: pointer;
-}
-
-/* SISTEMA */
 header {
   background: #0b3c5d;
   color: white;
@@ -44,7 +32,6 @@ header {
 .container {
   padding: 20px;
   background: #eef2f7;
-  min-height: 100vh;
 }
 .card {
   background: white;
@@ -64,8 +51,6 @@ input, select, button {
 button {
   background: #0b3c5d;
   color: white;
-  border: none;
-  cursor: pointer;
 }
 button:hover {
   background: #155a87;
@@ -73,229 +58,152 @@ button:hover {
 table {
   width: 100%;
   border-collapse: collapse;
-  margin-top: 10px;
 }
 th, td {
   border: 1px solid #ccc;
   padding: 8px;
 }
-th {
-  background: #0b3c5d;
-  color: white;
-}
-.status { font-weight: bold; }
-.emdia { color: green; }
-.vencido { color: red; }
-.devolvido { color: gray; }
+tr:hover { background:#dfe9f3; }
 </style>
 </head>
 
 <body>
 
-<!-- LOGIN -->
 <div id="login">
   <h2>NM SOLUCION</h2>
-  <p>Controle de Chaves</p>
-  <input type="password" id="senhaLogin" placeholder="Senha de acesso">
+  <input type="password" id="senhaLogin">
   <button onclick="entrar()">Entrar</button>
 </div>
 
-<!-- SISTEMA -->
 <div id="sistema" style="display:none;">
 
-<header>
-  <h1>NM SOLUCION - Controle de Chaves</h1>
-</header>
+<header><h1>Controle de Chaves</h1></header>
 
 <div class="container">
 
 <div class="card">
-  <h3>Empréstimo de Chave</h3>
-  <div class="form-grid">
-    <input id="nome" placeholder="Nome">
-    <input id="empresa" placeholder="Empresa">
-    <input id="funcao" placeholder="Função">
-    <input id="chave" placeholder="Chave">
-    <select id="motivo">
-      <option value="">Motivo do empréstimo</option>
-      <option value="Perda">Perda</option>
-      <option value="Serviço / Manutenção">Serviço / Manutenção</option>
-    </select>
-  </div>
-  <br>
-  <button onclick="emprestar()">Emprestar</button>
+<div class="form-grid">
+<input id="nome" placeholder="Nome">
+<input id="empresa" placeholder="Empresa">
+<input id="funcao" placeholder="Função">
+<input id="chave" placeholder="Chave">
+<select id="motivo">
+<option value="">Motivo</option>
+<option>Perda</option>
+<option>Serviço</option>
+</select>
+</div>
+<br>
+<button onclick="emprestar()">Emprestar</button>
 </div>
 
 <div class="card">
-  <button onclick="pdfAtrasados()">Relatório Atrasados (PDF)</button>
-  <button onclick="pdfGeral()">Relatório Geral (PDF)</button>
-</div>
-
-<div class="card">
-  <button onclick="backup()">💾 Fazer Backup</button>
-  <input type="file" id="arquivoBackup" accept=".json" onchange="restaurar(event)">
-</div>
-
-<div class="card">
-  <h3>Controle</h3>
-  <table>
-    <thead>
-      <tr>
-        <th>Nome</th>
-        <th>Empresa</th>
-        <th>Função</th>
-        <th>Chave</th>
-        <th>Motivo</th>
-        <th>Status</th>
-        <th>Ações</th>
-      </tr>
-    </thead>
-    <tbody id="tabela"></tbody>
-  </table>
+<table>
+<thead>
+<tr>
+<th>Nome</th><th>Empresa</th><th>Função</th><th>Chave</th><th>Status</th><th>Ações</th>
+</tr>
+</thead>
+<tbody id="tabela"></tbody>
+</table>
 </div>
 
 </div>
 </div>
 
 <script>
+
+// ✅ 🔥 SUA CONEXÃO
+const supabase = window.supabase.createClient(
+  "https://aorhhnlktnmwyknxmyyzo.supabase.co",
+  "sb_publishable_bHKdmfZVsPUeQtkCa5tnw_PaNcpxxx"
+);
+
 const SENHA_LOGIN = "NMDIGITAL";
 const SENHA_EXCLUIR = "2805";
 
-let dados = JSON.parse(localStorage.getItem("dados") || "[]");
+let dados = [];
 
-function entrar() {
-  if (senhaLogin.value === SENHA_LOGIN) {
-    login.style.display = "none";
-    sistema.style.display = "block";
-    render();
-  } else {
-    alert("Senha incorreta");
+function entrar(){
+  if(senhaLogin.value===SENHA_LOGIN){
+    login.style.display="none";
+    sistema.style.display="block";
+    carregar();
   }
 }
 
-function salvar() {
-  localStorage.setItem("dados", JSON.stringify(dados));
+// ✅ CARREGAR
+async function carregar(){
+  const { data } = await supabase.from("chaves").select("*");
+  dados = data || [];
   render();
 }
 
-function emprestar() {
-  if (!nome.value || !empresa.value || !funcao.value || !chave.value || !motivo.value) {
-    alert("Preencha todos os campos");
-    return;
+// ✅ EMPRESTAR
+async function emprestar(){
+  await supabase.from("chaves").insert([{
+    nome:nome.value,
+    empresa:empresa.value,
+    funcao:funcao.value,
+    chave:chave.value,
+    motivo:motivo.value,
+    data:new Date(),
+    devolvido:false
+  }]);
+
+  nome.value=empresa.value=funcao.value=chave.value="";
+  motivo.value="";
+
+  carregar();
+}
+
+// ✅ DEVOLVER
+async function devolver(id){
+  await supabase.from("chaves")
+    .update({devolvido:true})
+    .eq("id",id);
+
+  carregar();
+}
+
+// ✅ EXCLUIR
+async function excluir(id){
+  let senha = prompt("Senha:");
+  if(senha==="2805"){
+    await supabase.from("chaves")
+      .delete()
+      .eq("id",id);
+
+    carregar();
   }
+}
 
-  dados.push({
-    nome: nome.value,
-    empresa: empresa.value,
-    funcao: funcao.value,
-    chave: chave.value,
-    motivo: motivo.value,
-    data: new Date().toISOString(),
-    devolvido: false
+// ✅ TABELA
+function render(){
+  tabela.innerHTML="";
+  let agora=new Date();
+
+  dados.forEach(d=>{
+    let prazo = new Date(new Date(d.data).getTime()+48*60*60*1000);
+
+    let status="", cor="";
+    if(d.devolvido){status="DEVOLVIDO";cor="gray";}
+    else if(agora>prazo){status="VENCIDO";cor="red";}
+    else{status="EM DIA";cor="green";}
+
+    tabela.innerHTML+=\`
+    <tr>
+      <td>\${d.nome}</td>
+      <td>\${d.empresa}</td>
+      <td>\${d.funcao}</td>
+      <td>\${d.chave}</td>
+      <td style="color:\${cor}">\${status}</td>
+      <td>
+        <button onclick="devolver(\${d.id})">Devolver</button>
+        <button onclick="excluir(\${d.id})">Excluir</button>
+      </td>
+    </tr>\`;
   });
-
-  nome.value = empresa.value = funcao.value = chave.value = "";
-  motivo.value = "";
-  salvar();
-}
-
-function devolver(i) {
-  dados[i].devolvido = true;
-  salvar();
-}
-
-function excluir(i) {
-  const senha = prompt("Digite a senha mestre:");
-  if (senha === SENHA_EXCLUIR) {
-    dados.splice(i,1);
-    salvar();
-  } else {
-    alert("Senha incorreta");
-  }
-}
-
-function render() {
-  tabela.innerHTML = "";
-  let agora = new Date();
-
-  dados.forEach((d,i) => {
-    let prazo = new Date(new Date(d.data).getTime() + 48*60*60*1000);
-    let vencido = !d.devolvido && agora > prazo;
-
-    let status = d.devolvido ? "DEVOLVIDO" : (vencido ? "VENCIDO" : "EM DIA");
-    let classe = d.devolvido ? "devolvido" : (vencido ? "vencido" : "emdia");
-
-    tabela.innerHTML += `
-      <tr>
-        <td>${d.nome}</td>
-        <td>${d.empresa}</td>
-        <td>${d.funcao}</td>
-        <td>${d.chave}</td>
-        <td>${d.motivo}</td>
-        <td class="status ${classe}">${status}</td>
-        <td>
-          ${!d.devolvido ? `<button onclick="devolver(${i})">Devolver</button>` : ""}
-          <button onclick="excluir(${i})">Excluir</button>
-        </td>
-      </tr>`;
-  });
-}
-
-/* BACKUP */
-function backup() {
-  const blob = new Blob([JSON.stringify(dados, null, 2)], {type: "application/json"});
-  const link = document.createElement("a");
-  link.href = URL.createObjectURL(blob);
-  link.download = "backup_nm_solucion.json";
-  link.click();
-}
-
-/* RESTAURAR */
-function restaurar(event) {
-  const file = event.target.files[0];
-  if (!file) return;
-  const reader = new FileReader();
-  reader.onload = e => {
-    dados = JSON.parse(e.target.result);
-    salvar();
-    alert("Backup restaurado com sucesso!");
-  };
-  reader.readAsText(file);
-}
-
-/* PDFs */
-function pdfAtrasados() {
-  const { jsPDF } = window.jspdf;
-  const doc = new jsPDF();
-  let y = 10;
-  let agora = new Date();
-
-  doc.text("NM SOLUCION - RELATÓRIO DE ATRASADOS", 10, y);
-  y += 10;
-
-  dados.forEach(d => {
-    let prazo = new Date(new Date(d.data).getTime() + 48*60*60*1000);
-    if (!d.devolvido && agora > prazo) {
-      doc.text(`${d.nome} | ${d.empresa} | ${d.chave} | ${d.motivo}`, 10, y);
-      y += 6;
-    }
-  });
-  window.open(doc.output("bloburl"));
-}
-
-function pdfGeral() {
-  const { jsPDF } = window.jspdf;
-  const doc = new jsPDF();
-  let y = 10;
-
-  doc.text("NM SOLUCION - RELATÓRIO GERAL", 10, y);
-  y += 10;
-
-  dados.forEach(d => {
-    doc.text(`${d.nome} | ${d.empresa} | ${d.chave} | ${d.motivo}`, 10, y);
-    y += 6;
-  });
-  window.open(doc.output("bloburl"));
 }
 </script>
 
