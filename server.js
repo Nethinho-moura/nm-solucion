@@ -11,18 +11,17 @@ res.send(`
 
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
-
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 
 <style>
-body {font-family: Arial;background:linear-gradient(135deg,#0b3c5d,#1f6fa5);margin:0;}
+body {font-family:Arial;background:linear-gradient(135deg,#0b3c5d,#1f6fa5);margin:0;}
 #login {width:300px;margin:120px auto;background:white;padding:20px;text-align:center;}
 header {background:#0b3c5d;color:white;padding:10px;text-align:center;}
 .container {padding:20px;background:#eef2f7;min-height:100vh;}
 .card {background:white;padding:15px;margin-bottom:15px;border-radius:8px;}
 .form-grid {display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;}
 input,select,button{padding:8px;width:100%;}
-button{background:#0b3c5d;color:white;border:none;}
+button{background:#0b3c5d;color:white;border:none;cursor:pointer;}
 table{width:100%;border-collapse:collapse;}
 th,td{border:1px solid #ccc;padding:8px;}
 th{background:#0b3c5d;color:white;}
@@ -33,7 +32,7 @@ th{background:#0b3c5d;color:white;}
 
 <div id="login">
 <h2>NM SOLUCION</h2>
-<input id="senhaLogin" type="password">
+<input id="senhaLogin" type="password" placeholder="Senha">
 <button onclick="entrar()">Entrar</button>
 </div>
 
@@ -59,7 +58,8 @@ th{background:#0b3c5d;color:white;}
 </div>
 
 <div class="card">
-<button onclick="pdfGeral()">Relatório</button>
+<button onclick="pdfGeral()">Relatório Geral</button>
+<button onclick="pdfAtrasados()">Relatório Atrasados</button>
 </div>
 
 <div class="card">
@@ -102,9 +102,10 @@ function entrar(){
     login.style.display="none";
     sistema.style.display="block";
     carregar();
-  }
+  } else alert("Senha incorreta");
 }
 
+// ✅ carregamento tempo real
 function carregar(){
   db.collection("chaves").onSnapshot(snapshot=>{
     dados=[];
@@ -115,9 +116,11 @@ function carregar(){
   });
 }
 
+// ✅ EMPRESTAR + LIMPA CAMPOS
 async function emprestar(){
   if(!nome.value||!empresa.value||!funcao.value||!chave.value||!motivo.value){
-    alert("Preencha tudo"); return;
+    alert("Preencha tudo");
+    return;
   }
 
   await db.collection("chaves").add({
@@ -130,7 +133,6 @@ async function emprestar(){
     devolvido:false
   });
 
-  // ✅ LIMPA CAMPOS
   document.getElementById("nome").value="";
   document.getElementById("empresa").value="";
   document.getElementById("funcao").value="";
@@ -138,12 +140,12 @@ async function emprestar(){
   document.getElementById("motivo").value="";
 }
 
-// ✅ DEVOLVER FUNCIONANDO
+// ✅ DEVOLVER
 async function devolver(id){
   await db.collection("chaves").doc(id).update({devolvido:true});
 }
 
-// ✅ EXCLUIR FUNCIONANDO
+// ✅ EXCLUIR (FUNCIONANDO)
 async function excluir(id){
   let senha=prompt("Senha:");
   if(senha===SENHA_EXCLUIR){
@@ -151,7 +153,7 @@ async function excluir(id){
   }
 }
 
-// ✅ TABELA CORRETA
+// ✅ RENDER
 function render(){
   tabela.innerHTML="";
   let agora=new Date();
@@ -165,22 +167,23 @@ function render(){
     else if(agora>prazo){status="VENCIDO";cor="red";}
     else{status="EM DIA";cor="green";}
 
-    tabela.innerHTML+=
-    "<tr>"+
-      "<td>"+d.nome+"</td>"+
-      "<td>"+d.empresa+"</td>"+
-      "<td>"+d.funcao+"</td>"+
-      "<td>"+d.chave+"</td>"+
-      "<td style='color:"+cor+"'>"+status+"</td>"+
-      "<td>"+
-        (!d.devolvido ? "<button onclick=\\"devolver('"+d.id+"')\\">Devolver</button>" : "")+
-        "<button onclick=\\"excluir('"+d.id+"')\\">Excluir</button>"+
-      "</td>"+
-    "</tr>";
+    tabela.innerHTML += \`
+    <tr>
+      <td>\${d.nome}</td>
+      <td>\${d.empresa}</td>
+      <td>\${d.funcao}</td>
+      <td>\${d.chave}</td>
+      <td style="color:\${cor};font-weight:bold;">\${status}</td>
+      <td>
+        <button onclick="devolver('\${d.id}')">Devolver</button>
+        <button onclick="excluir('\${d.id}')">Excluir</button>
+      </td>
+    </tr>
+    \`;
   });
 }
 
-// backup
+// ✅ BACKUP
 function backup(){
   const blob=new Blob([JSON.stringify(dados,null,2)],{type:"application/json"});
   const link=document.createElement("a");
@@ -189,21 +192,22 @@ function backup(){
   link.click();
 }
 
+// ✅ RESTAURAR
 function restaurar(e){
   const file=e.target.files[0];
   const reader=new FileReader();
   reader.onload=async ev=>{
-    const lista=JSON.parse(ev.target.result);
+    let lista=JSON.parse(ev.target.result);
     for(let item of lista){
       delete item.id;
       await db.collection("chaves").add(item);
     }
-    alert("Restaurado!");
+    alert("Backup restaurado!");
   };
   reader.readAsText(file);
 }
 
-// PDF abre no navegador
+// ✅ PDF GERAL (COMPLETO)
 function pdfGeral(){
   const { jsPDF } = window.jspdf;
   let doc=new jsPDF();
@@ -213,12 +217,42 @@ function pdfGeral(){
     let data=new Date(d.data.seconds*1000);
     let venc=new Date(data.getTime()+48*60*60*1000);
 
-    doc.text(d.nome+" | "+d.empresa+" | "+d.funcao+" | "+d.chave,10,y);
+    doc.text(
+      d.nome+" | "+d.empresa+" | "+d.funcao+" | "+d.chave+" | "+d.motivo,
+      10,y
+    );
     y+=6;
-    doc.text("Emprestado: "+data.toLocaleDateString()+" | Vence: "+venc.toLocaleDateString(),10,y);
+
+    doc.text(
+      "Emprestado: "+data.toLocaleDateString()+" | Vence: "+venc.toLocaleDateString(),
+      10,y
+    );
     y+=6;
+
     doc.line(10,y,200,y);
     y+=6;
+  });
+
+  window.open(doc.output("bloburl"));
+}
+
+// ✅ PDF ATRASADOS
+function pdfAtrasados(){
+  const { jsPDF } = window.jspdf;
+  let doc=new jsPDF();
+  let y=10;
+  let agora=new Date();
+
+  dados.forEach(d=>{
+    let data=new Date(d.data.seconds*1000);
+    let venc=new Date(data.getTime()+48*60*60*1000);
+
+    if(!d.devolvido && agora>venc){
+      doc.text(d.nome+" | "+d.empresa+" | "+d.chave,10,y);
+      y+=6;
+      doc.line(10,y,200,y);
+      y+=6;
+    }
   });
 
   window.open(doc.output("bloburl"));
@@ -231,4 +265,4 @@ function pdfGeral(){
 `);
 });
 
-app.listen(process.env.PORT||3000);
+app.listen(process.env.PORT || 3000);
