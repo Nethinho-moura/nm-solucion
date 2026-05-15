@@ -10,15 +10,18 @@ body {
   background: #eef2f7;
   margin: 0;
 }
+
 header {
   background: #0b3c5d;
   color: white;
   padding: 15px;
   text-align: center;
 }
+
 .container {
   padding: 20px;
 }
+
 .card {
   background: white;
   padding: 15px;
@@ -29,7 +32,7 @@ header {
 
 .form-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
   gap: 10px;
 }
 
@@ -44,6 +47,7 @@ button {
   border: none;
   cursor: pointer;
 }
+
 button:hover {
   background: #155a87;
 }
@@ -51,19 +55,33 @@ button:hover {
 table {
   width: 100%;
   border-collapse: collapse;
+  margin-top: 10px;
 }
+
 th, td {
   border: 1px solid #ccc;
   padding: 8px;
 }
+
 th {
   background: #0b3c5d;
   color: white;
 }
 
-.status-em-dia { color: green; font-weight: bold; }
-.status-vencido { color: red; font-weight: bold; }
-.status-devolvido { color: gray; font-weight: bold; }
+.status-em-dia {
+  color: green;
+  font-weight: bold;
+}
+
+.status-vencido {
+  color: red;
+  font-weight: bold;
+}
+
+.status-devolvido {
+  color: gray;
+  font-weight: bold;
+}
 </style>
 </head>
 
@@ -77,12 +95,14 @@ th {
 
 <div class="card">
   <h3>Empréstimo de Chave</h3>
+
   <div class="form-grid">
     <input id="nome" placeholder="Nome">
     <input id="empresa" placeholder="Empresa">
     <input id="funcao" placeholder="Função">
     <input id="chave" placeholder="Chave">
   </div>
+
   <br>
   <button onclick="emprestar()">Emprestar</button>
 </div>
@@ -114,13 +134,13 @@ th {
 <script>
 let dados = [];
 
+// ✅ carrega sem quebrar se o Render estiver acordando
 async function carregar() {
   try {
     const res = await fetch('/dados');
-    if (!res.ok) throw new Error('Backend acordando');
+    if (!res.ok) throw new Error();
     dados = await res.json();
-  } catch (e) {
-    console.warn('Servidor ainda acordando...');
+  } catch {
     dados = [];
   }
   render();
@@ -129,7 +149,7 @@ async function carregar() {
 async function salvar() {
   await fetch('/dados', {
     method: 'POST',
-    headers: {'Content-Type':'application/json'},
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(dados)
   });
   render();
@@ -150,7 +170,11 @@ function emprestar() {
     devolvido: false
   });
 
-  nome.value = empresa.value = funcao.value = chave.value = '';
+  nome.value = '';
+  empresa.value = '';
+  funcao.value = '';
+  chave.value = '';
+
   salvar();
 }
 
@@ -162,7 +186,7 @@ function devolver(i) {
 function excluir(i) {
   const senha = prompt('Digite a senha mestre');
   if (senha === '2805') {
-    dados.splice(i,1);
+    dados.splice(i, 1);
     salvar();
   } else {
     alert('Senha incorreta');
@@ -171,9 +195,10 @@ function excluir(i) {
 
 function render() {
   tabela.innerHTML = '';
-  dados.forEach((d,i)=>{
+
+  dados.forEach((d, i) => {
     const dt = new Date(d.data);
-    const prazo = new Date(dt.getTime() + 48*60*60*1000);
+    const prazo = new Date(dt.getTime() + 48 * 60 * 60 * 1000);
     const vencido = !d.devolvido && new Date() > prazo;
 
     let status = 'EM DIA';
@@ -205,9 +230,9 @@ function render() {
 
 function relatorioAtrasados() {
   let texto = 'RELATÓRIO DE ATRASADOS\n\n';
-  dados.forEach(d=>{
+  dados.forEach(d => {
     const dt = new Date(d.data);
-    const prazo = new Date(dt.getTime() + 48*60*60*1000);
+    const prazo = new Date(dt.getTime() + 48 * 60 * 60 * 1000);
     if (!d.devolvido && new Date() > prazo) {
       texto += `${d.nome} | ${d.empresa} | ${d.funcao} | ${d.chave}\n`;
     }
