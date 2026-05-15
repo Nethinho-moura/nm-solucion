@@ -6,11 +6,12 @@ app.get("/", (req, res) => {
 res.send(`
 <!DOCTYPE html>
 <html lang="pt-br">
+
 <head>
 <meta charset="UTF-8">
 <title>NM SOLUCION</title>
 
-<!-- ✅ SUPABASE CERTO -->
+<!-- ✅ SUPABASE CORRETO -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
 <!-- ✅ PDF -->
@@ -19,7 +20,7 @@ res.send(`
 <style>
 body {font-family:Arial;background:linear-gradient(135deg,#0b3c5d,#1f6fa5);margin:0;}
 #login {width:350px;margin:120px auto;background:white;padding:25px;text-align:center;}
-header {background:#0b3c5d;color:white;padding:15px;text-align:center;}
+header {background:#0b3c5d;color:white;padding:10px;text-align:center;}
 .container {padding:20px;background:#eef2f7;}
 .card {background:white;padding:15px;margin-bottom:15px;border-radius:8px;}
 .form-grid {display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px;}
@@ -41,7 +42,6 @@ tr:hover{background:#dfe9f3;}
 </div>
 
 <div id="sistema" style="display:none;">
-
 <header><h2>Controle de Chaves</h2></header>
 
 <div class="container">
@@ -78,37 +78,40 @@ tr:hover{background:#dfe9f3;}
 
 <script>
 
-// ✅ 🔥 SUA CONEXÃO
+// ✅ SUPABASE CERTO
 const supabase = window.supabase.createClient(
   "https://aorhhnlktnmwyknxmyyzo.supabase.co",
   "sb_publishable_bHKdmfZVsPUeQtkCa5tnw_PaNcpxxx"
 );
 
-const SENHA_LOGIN="NMDIGITAL";
-const SENHA_EXCLUIR="2805";
+const SENHA_LOGIN = "NMDIGITAL";
+const SENHA_EXCLUIR = "2805";
 
-let dados=[];
+let dados = [];
 
-// LOGIN
+// ✅ LOGIN FUNCIONANDO
 function entrar(){
-  if(senhaLogin.value===SENHA_LOGIN){
-    login.style.display="none";
-    sistema.style.display="block";
+  if(document.getElementById("senhaLogin").value === SENHA_LOGIN){
+    document.getElementById("login").style.display = "none";
+    document.getElementById("sistema").style.display = "block";
     carregar();
-  } else alert("Senha incorreta");
+  } else {
+    alert("Senha incorreta");
+  }
 }
 
-// CARREGAR
+// ✅ CARREGAR BANCO
 async function carregar(){
   const { data } = await supabase.from("chaves").select("*");
-  dados=data||[];
+  dados = data || [];
   render();
 }
 
-// EMPRESTAR
+// ✅ SALVAR
 async function emprestar(){
-  if(!nome.value||!empresa.value||!funcao.value||!chave.value||!motivo.value){
-    alert("Preencha tudo"); return;
+  if(!nome.value || !empresa.value || !funcao.value || !chave.value || !motivo.value){
+    alert("Preencha tudo");
+    return;
   }
 
   await supabase.from("chaves").insert([{
@@ -121,33 +124,38 @@ async function emprestar(){
     devolvido:false
   }]);
 
-  nome.value=empresa.value=funcao.value=chave.value="";
+  nome.value="";
+  empresa.value="";
+  funcao.value="";
+  chave.value="";
   motivo.value="";
 
   carregar();
 }
 
-// DEVOLVER
+// ✅ DEVOLVER
 async function devolver(id){
   await supabase.from("chaves")
   .update({devolvido:true})
-  .eq("id",id);
+  .eq("id", id);
+
   carregar();
 }
 
-// EXCLUIR
+// ✅ EXCLUIR
 async function excluir(id){
-  let senha=prompt("Senha:");
-  if(senha===SENHA_EXCLUIR){
+  if(prompt("Senha:")===SENHA_EXCLUIR){
     await supabase.from("chaves")
     .delete()
-    .eq("id",id);
+    .eq("id", id);
+
     carregar();
   }
 }
 
-// RENDER
+// ✅ RENDER
 function render(){
+  const tabela = document.getElementById("tabela");
   tabela.innerHTML="";
   let agora=new Date();
 
