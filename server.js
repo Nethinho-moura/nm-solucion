@@ -121,6 +121,12 @@ th {
   <button onclick="pdfGeral()">PDF Geral</button>
 </div>
 
+<!-- ✅ BACKUP -->
+<div class="card">
+  <button onclick="backup()">💾 Fazer Backup</button>
+  <input type="file" onchange="restaurar(event)">
+</div>
+
 <div class="card">
 <table>
 <thead>
@@ -237,6 +243,30 @@ function render(){
   });
 }
 
+/* ✅ BACKUP */
+function backup(){
+  const blob = new Blob([JSON.stringify(dados, null, 2)], {type:"application/json"});
+  const link = document.createElement("a");
+  link.href = URL.createObjectURL(blob);
+  link.download = "backup_nm_solucion.json";
+  link.click();
+}
+
+/* ✅ RESTAURAR */
+function restaurar(event){
+  const file = event.target.files[0];
+  if(!file) return;
+
+  const reader = new FileReader();
+  reader.onload = e=>{
+    dados = JSON.parse(e.target.result);
+    salvar();
+    alert("Backup restaurado com sucesso!");
+  };
+
+  reader.readAsText(file);
+}
+
 /* PDF */
 function pdfGeral(){
   const { jsPDF } = window.jspdf;
@@ -253,11 +283,7 @@ function pdfGeral(){
     doc.text("------------------------------------------------",10,y); y+=5;
 
     doc.text(
-      d.nome +
-      " | Empresa: "+d.empresa+
-      " | Função: "+d.funcao+
-      " | Chave: "+d.chave+
-      " | Motivo: "+d.motivo,
+      d.nome+" | Empresa: "+d.empresa+" | Função: "+d.funcao+" | Chave: "+d.chave+" | Motivo: "+d.motivo,
       10,y
     );
     y+=6;
@@ -291,11 +317,7 @@ function pdfAtrasados(){
       doc.text("------------------------------------------------",10,y); y+=5;
 
       doc.text(
-        d.nome +
-        " | Empresa: "+d.empresa+
-        " | Função: "+d.funcao+
-        " | Chave: "+d.chave+
-        " | Motivo: "+d.motivo,
+        d.nome+" | Empresa: "+d.empresa+" | Função: "+d.funcao+" | Chave: "+d.chave+" | Motivo: "+d.motivo,
         10,y
       );
       y+=6;
@@ -319,3 +341,4 @@ function pdfAtrasados(){
 });
 
 app.listen(process.env.PORT || 3000);
+``
