@@ -201,13 +201,26 @@ function render(){
 
   dados.forEach((d,i)=>{
     let prazo = new Date(new Date(d.data).getTime()+48*60*60*1000);
-    let status = d.devolvido ? "DEVOLVIDO" : (agora>prazo?"VENCIDO":"EM DIA");
+
+    let statusTexto = "";
+    let cor = "";
+
+    if(d.devolvido){
+      statusTexto = "DEVOLVIDO";
+      cor = "gray";
+    } else if(agora > prazo){
+      statusTexto = "VENCIDO";
+      cor = "red";
+    } else {
+      statusTexto = "EM DIA";
+      cor = "green";
+    }
 
     tabela.innerHTML+=\`
     <tr>
       <td>\${d.nome}</td>
       <td>\${d.chave}</td>
-      <td>\${status}</td>
+      <td style="color:\${cor}; font-weight:bold;">\${statusTexto}</td>
       <td>
         \${!d.devolvido ? '<button onclick="devolver('+i+')">Devolver</button>' : ""}
         <button onclick="excluir(\${i})">Excluir</button>
