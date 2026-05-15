@@ -5,14 +5,13 @@
 <title>NM SOLUCION - Controle de Chaves</title>
 
 <!-- jsPDF -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js
 
 <style>
 body {
   font-family: Arial, sans-serif;
   background: #eef2f7;
   margin: 0;
-  padding: 0;
 }
 header {
   background: #0b3c5d;
@@ -129,8 +128,13 @@ function emprestar() {
   salvar();
 }
 
+function devolver(index) {
+  dados[index].devolvido = true;
+  salvar();
+}
+
 function excluir(index) {
-  const senha = prompt("Digite a senha mestre para excluir:");
+  const senha = prompt("Digite a senha mestre:");
   if (senha === "2805") {
     dados.splice(index, 1);
     salvar();
@@ -159,6 +163,7 @@ function render() {
       <td>${d.chave}</td>
       <td class="status ${classe}">${status}</td>
       <td>
+        ${!d.devolvido ? `<button onclick="devolver(${index})">Devolver</button>` : ""}
         <button onclick="excluir(${index})">Excluir</button>
       </td>
     `;
@@ -188,7 +193,6 @@ function pdfAtrasados() {
     }
   });
 
-  doc.autoPrint();
   window.open(doc.output("bloburl"));
 }
 
@@ -203,7 +207,6 @@ function pdfGeral() {
   doc.setFontSize(10);
 
   dados.forEach(d => {
-    let dataEmp = new Date(d.data);
     let status = d.devolvido ? "DEVOLVIDO" : "EM ABERTO";
     doc.text(`Nome: ${d.nome}`, 10, y); y+=5;
     doc.text(`Empresa: ${d.empresa}`, 10, y); y+=5;
@@ -212,7 +215,6 @@ function pdfGeral() {
     doc.text(`Status: ${status}`, 10, y); y+=8;
   });
 
-  doc.autoPrint();
   window.open(doc.output("bloburl"));
 }
 
