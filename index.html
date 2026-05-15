@@ -5,7 +5,7 @@
 <title>NM SOLUCION - Controle de Chaves</title>
 
 <!-- jsPDF -->
-https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 
 <style>
 body {
@@ -28,15 +28,23 @@ header {
   margin-bottom: 15px;
   border-radius: 8px;
 }
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 10px;
+}
 input, button {
   padding: 8px;
-  margin: 5px;
+  width: 100%;
 }
 button {
   background: #0b3c5d;
   color: white;
   border: none;
   cursor: pointer;
+}
+button:hover {
+  background: #155a87;
 }
 table {
   width: 100%;
@@ -70,10 +78,13 @@ th {
 
 <div class="card">
   <h3>Empréstimo de Chave</h3>
-  <input id="nome" placeholder="Nome">
-  <input id="empresa" placeholder="Empresa">
-  <input id="funcao" placeholder="Função">
-  <input id="chave" placeholder="Chave">
+  <div class="form-grid">
+    <input id="nome" placeholder="Nome">
+    <input id="empresa" placeholder="Empresa">
+    <input id="funcao" placeholder="Função">
+    <input id="chave" placeholder="Chave">
+  </div>
+  <br>
   <button onclick="emprestar()">Emprestar</button>
 </div>
 
@@ -102,10 +113,25 @@ th {
 </div>
 
 <script>
-let dados = JSON.parse(localStorage.getItem("dados") || "[]");
+let dados = [];
 
-function salvar() {
-  localStorage.setItem("dados", JSON.stringify(dados));
+async function carregar() {
+  try {
+    const res = await fetch('/dados');
+    if (!res.ok) throw new Error();
+    dados = await res.json();
+  } catch {
+    dados = [];
+  }
+  render();
+}
+
+async function salvar() {
+  await fetch('/dados', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(dados)
+  });
   render();
 }
 
@@ -218,7 +244,7 @@ function pdfGeral() {
   window.open(doc.output("bloburl"));
 }
 
-render();
+window.onload = carregar;
 </script>
 
 </body>
