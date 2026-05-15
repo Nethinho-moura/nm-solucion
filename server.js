@@ -19,7 +19,6 @@ body {
   margin: 0;
 }
 
-/* LOGIN */
 #login {
   width: 300px;
   margin: 120px auto;
@@ -28,7 +27,6 @@ body {
   text-align: center;
 }
 
-/* SISTEMA */
 header {
   background:#0b3c5d;
   color:white;
@@ -49,7 +47,6 @@ header {
   margin-bottom:15px;
 }
 
-/* FORM LADO A LADO */
 .form-grid {
   display:grid;
   grid-template-columns: repeat(auto-fit, minmax(180px,1fr));
@@ -72,7 +69,6 @@ button:hover {
   background:#155a87;
 }
 
-/* TABELA */
 table {
   width:100%;
   border-collapse: collapse;
@@ -109,7 +105,7 @@ th {
     <input id="nome" placeholder="Nome">
     <input id="empresa" placeholder="Empresa">
     <input id="funcao" placeholder="Função">
-    <input id="chave" placeholder="Chave">
+    <input id="chave" placeholder="Chave / Apartamento">
     <select id="motivo">
       <option value="">Motivo</option>
       <option>Perda</option>
@@ -130,6 +126,8 @@ th {
 <thead>
 <tr>
 <th>Nome</th>
+<th>Empresa</th>
+<th>Função</th>
 <th>Chave</th>
 <th>Status</th>
 <th>Ações</th>
@@ -149,7 +147,7 @@ const SENHA_EXCLUIR = "2805";
 let dados = JSON.parse(localStorage.getItem("dados")||"[]");
 
 function entrar(){
-  if(senhaLogin.value==="NMDIGITAL"){
+  if(senhaLogin.value===SENHA_LOGIN){
     login.style.display="none";
     sistema.style.display="block";
     render();
@@ -162,17 +160,27 @@ function salvar(){
 }
 
 function emprestar(){
-  if(!nome.value || !chave.value) return alert("Preencha");
+  if(!nome.value || !empresa.value || !funcao.value || !chave.value || !motivo.value){
+    alert("Preencha tudo");
+    return;
+  }
 
   dados.push({
     nome:nome.value,
+    empresa:empresa.value,
+    funcao:funcao.value,
     chave:chave.value,
+    motivo:motivo.value,
     data:new Date(),
     devolvido:false
   });
 
   nome.value="";
+  empresa.value="";
+  funcao.value="";
   chave.value="";
+  motivo.value="";
+
   salvar();
 }
 
@@ -182,13 +190,11 @@ function devolver(i){
 }
 
 function excluir(i){
-  let senha = prompt("Senha para excluir:");
+  let senha=prompt("Senha:");
   if(senha===SENHA_EXCLUIR){
     dados.splice(i,1);
     salvar();
-  } else {
-    alert("Senha incorreta");
-  }
+  } else alert("Errada");
 }
 
 function formatarData(d){
@@ -197,30 +203,32 @@ function formatarData(d){
 
 function render(){
   tabela.innerHTML="";
-  let agora=new Date();
+  let agora = new Date();
 
   dados.forEach((d,i)=>{
     let prazo = new Date(new Date(d.data).getTime()+48*60*60*1000);
 
-    let statusTexto = "";
-    let cor = "";
+    let status="";
+    let cor="";
 
     if(d.devolvido){
-      statusTexto = "DEVOLVIDO";
-      cor = "gray";
-    } else if(agora > prazo){
-      statusTexto = "VENCIDO";
-      cor = "red";
+      status="DEVOLVIDO";
+      cor="gray";
+    } else if(agora>prazo){
+      status="VENCIDO";
+      cor="red";
     } else {
-      statusTexto = "EM DIA";
-      cor = "green";
+      status="EM DIA";
+      cor="green";
     }
 
-    tabela.innerHTML+=\`
+    tabela.innerHTML += \`
     <tr>
       <td>\${d.nome}</td>
+      <td>\${d.empresa}</td>
+      <td>\${d.funcao}</td>
       <td>\${d.chave}</td>
-      <td style="color:\${cor}; font-weight:bold;">\${statusTexto}</td>
+      <td style="color:\${cor}; font-weight:bold;">\${status}</td>
       <td>
         \${!d.devolvido ? '<button onclick="devolver('+i+')">Devolver</button>' : ""}
         <button onclick="excluir(\${i})">Excluir</button>
@@ -229,7 +237,7 @@ function render(){
   });
 }
 
-/* PDF COM LINHAS */
+/* PDF */
 function pdfGeral(){
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF();
@@ -239,15 +247,23 @@ function pdfGeral(){
   y+=10;
 
   dados.forEach(d=>{
-    let emp = new Date(d.data);
-    let venc = new Date(emp.getTime()+48*60*60*1000);
+    let emp=new Date(d.data);
+    let venc=new Date(emp.getTime()+48*60*60*1000);
 
-    doc.text("----------------------------------------------",10,y); y+=5;
+    doc.text("------------------------------------------------",10,y); y+=5;
 
     doc.text(
-      d.nome+" | "+d.chave+
-      " | Emprestado: "+formatarData(emp)+
-      " | Vence: "+formatarData(venc),
+      d.nome +
+      " | Empresa: "+d.empresa+
+      " | Função: "+d.funcao+
+      " | Chave: "+d.chave+
+      " | Motivo: "+d.motivo,
+      10,y
+    );
+    y+=6;
+
+    doc.text(
+      "Emprestado: "+formatarData(emp)+" | Vence: "+formatarData(venc),
       10,y
     );
 
@@ -271,12 +287,21 @@ function pdfAtrasados(){
     let venc=new Date(emp.getTime()+48*60*60*1000);
 
     if(!d.devolvido && agora>venc){
+
       doc.text("------------------------------------------------",10,y); y+=5;
 
       doc.text(
-        d.nome+" | "+d.chave+
-        " | Emprestado: "+formatarData(emp)+
-        " | Vence: "+formatarData(venc),
+        d.nome +
+        " | Empresa: "+d.empresa+
+        " | Função: "+d.funcao+
+        " | Chave: "+d.chave+
+        " | Motivo: "+d.motivo,
+        10,y
+      );
+      y+=6;
+
+      doc.text(
+        "Emprestado: "+formatarData(emp)+" | Vence: "+formatarData(venc),
         10,y
       );
 
