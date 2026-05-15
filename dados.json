@@ -1,1 +1,24 @@
-[]
+const express = require('express');
+const fs = require('fs');
+const app = express();
+
+app.use(express.json());
+app.use(express.static(__dirname));
+
+const DB = 'dados.json';
+
+app.get('/dados', (req, res) => {
+  if (!fs.existsSync(DB)) fs.writeFileSync(DB, '[]');
+  const dados = JSON.parse(fs.readFileSync(DB));
+  res.json(dados);
+});
+
+app.post('/dados', (req, res) => {
+  fs.writeFileSync(DB, JSON.stringify(req.body, null, 2));
+  res.sendStatus(200);
+});
+
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+  console.log('Servidor rodando na porta', PORT);
+});
