@@ -9,25 +9,68 @@ res.send(`
 <meta charset="UTF-8">
 <title>NM SOLUCION</title>
 
-<!-- Firebase -->
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
 
-<!-- PDF -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 
 <style>
-body {font-family: Arial; background: linear-gradient(135deg,#0b3c5d,#1f6fa5); margin:0;}
-#login {width:300px; margin:120px auto; background:white; padding:20px; text-align:center;}
-header {background:#0b3c5d;color:white;padding:10px;text-align:center;}
-.container {padding:20px;background:#eef2f7;min-height:100vh;}
-.card {background:white;padding:15px;margin-bottom:15px;border-radius:8px;}
-.form-grid {display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;}
-input,select,button{padding:8px;width:100%;}
-button{background:#0b3c5d;color:white;border:none;cursor:pointer;}
-table{width:100%;border-collapse:collapse;}
-td,th{border:1px solid #ccc;padding:8px;}
-th{background:#0b3c5d;color:white;}
+body {
+  font-family: Arial;
+  background: linear-gradient(135deg,#0b3c5d,#1f6fa5);
+  margin:0;
+}
+#login {
+  width:300px;
+  margin:120px auto;
+  background:white;
+  padding:20px;
+  text-align:center;
+}
+header {
+  background:#0b3c5d;
+  color:white;
+  padding:10px;
+  text-align:center;
+}
+.container {
+  padding:20px;
+  background:#eef2f7;
+  min-height:100vh;
+}
+.card {
+  background:white;
+  padding:15px;
+  margin-bottom:15px;
+  border-radius:8px;
+}
+.form-grid {
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(180px,1fr));
+  gap:10px;
+}
+input,select,button {
+  padding:8px;
+  width:100%;
+}
+button {
+  background:#0b3c5d;
+  color:white;
+  border:none;
+  cursor:pointer;
+}
+table {
+  width:100%;
+  border-collapse:collapse;
+}
+th,td {
+  border:1px solid #ccc;
+  padding:8px;
+}
+th {
+  background:#0b3c5d;
+  color:white;
+}
 </style>
 </head>
 
@@ -61,20 +104,20 @@ th{background:#0b3c5d;color:white;}
 </div>
 
 <div class="card">
-<button onclick="pdfGeral()">PDF Geral</button>
-<button onclick="pdfAtrasados()">PDF Atrasados</button>
-</div>
-
-<div class="card">
-<button onclick="backup()">💾 Backup</button>
-<input type="file" onchange="restaurar(event)">
+<button onclick="pdfGeral()">Relatório Geral</button>
+<button onclick="pdfAtrasados()">Atrasados</button>
 </div>
 
 <div class="card">
 <table>
 <thead>
 <tr>
-<th>Nome</th><th>Empresa</th><th>Função</th><th>Chave</th><th>Status</th><th>Ações</th>
+<th>Nome</th>
+<th>Empresa</th>
+<th>Função</th>
+<th>Chave</th>
+<th>Status</th>
+<th>Ação</th>
 </tr>
 </thead>
 <tbody id="tabela"></tbody>
@@ -86,6 +129,7 @@ th{background:#0b3c5d;color:white;}
 
 <script>
 
+// 🔥 FIREBASE
 const firebaseConfig = {
   apiKey: "AIzaSyC--ryk4Y2l_1zMWPCEcHffpsYI_zv9_s8",
   authDomain: "nm-solucion.firebaseapp.com",
@@ -100,17 +144,19 @@ const SENHA_EXCLUIR = "2805";
 
 let dados = [];
 
+// LOGIN
 function entrar(){
-  if(senhaLogin.value===SENHA_LOGIN){
+  if(senhaLogin.value==="NMDIGITAL"){
     login.style.display="none";
     sistema.style.display="block";
     carregar();
   } else alert("Senha incorreta");
 }
 
+// CARREGAR DADOS (tempo real)
 function carregar(){
   db.collection("chaves").onSnapshot(snapshot=>{
-    dados = [];
+    dados=[];
     snapshot.forEach(doc=>{
       dados.push({...doc.data(), id:doc.id});
     });
@@ -118,6 +164,7 @@ function carregar(){
   });
 }
 
+// EMPRESTAR
 async function emprestar(){
   if(!nome.value||!empresa.value||!funcao.value||!chave.value||!motivo.value){
     alert("Preencha tudo"); return;
@@ -137,21 +184,20 @@ async function emprestar(){
   motivo.value="";
 }
 
+// DEVOLVER
 async function devolver(id){
   await db.collection("chaves").doc(id).update({devolvido:true});
 }
 
+// EXCLUIR
 async function excluir(id){
-  let senha=prompt("Senha:");
+  let senha = prompt("Senha:");
   if(senha===SENHA_EXCLUIR){
     await db.collection("chaves").doc(id).delete();
-  } else alert("Senha errada");
+  }
 }
 
-function formatarData(d){
-  return new Date(d.seconds*1000).toLocaleDateString("pt-BR");
-}
-
+// STATUS + TABELA
 function render(){
   tabela.innerHTML="";
   let agora=new Date();
@@ -163,9 +209,9 @@ function render(){
     let status="";
     let cor="";
 
-    if(d.devolvido){ status="DEVOLVIDO"; cor="gray";}
-    else if(agora>prazo){ status="VENCIDO"; cor="red";}
-    else{ status="EM DIA"; cor="green"; }
+    if(d.devolvido){status="DEVOLVIDO"; cor="gray";}
+    else if(agora>prazo){status="VENCIDO"; cor="red";}
+    else{status="EM DIA"; cor="green";}
 
     tabela.innerHTML+=\`
     <tr>
@@ -175,69 +221,68 @@ function render(){
       <td>\${d.chave}</td>
       <td style="color:\${cor};font-weight:bold;">\${status}</td>
       <td>
-        \${!d.devolvido?'<button onclick="devolver("'+d.id+'")">Devolver</button>':""}
-        <button onclick="excluir("'+d.id+'")">Excluir</button>
+        \${!d.devolvido?'<button onclick="devolver(\\''+d.id+'\\')">Devolver</button>':""}
+        <button onclick="excluir(\\''+d.id+'\\')">Excluir</button>
       </td>
     </tr>\`;
   });
 }
 
-/* BACKUP (continua funcionando local) */
-function backup(){
-  const blob=new Blob([JSON.stringify(dados,null,2)],{type:"application/json"});
-  const link=document.createElement("a");
-  link.href=URL.createObjectURL(blob);
-  link.download="backup.json";
-  link.click();
-}
-
-function restaurar(e){
-  const file=e.target.files[0];
-  const reader=new FileReader();
-  reader.onload=async ev=>{
-    let lista=JSON.parse(ev.target.result);
-    for(let item of lista){
-      await db.collection("chaves").add(item);
-    }
-    alert("Restaurado!");
-  };
-  reader.readAsText(file);
-}
-
-/* PDF mantém igual */
+// ✅ RELATÓRIO ESTILO PLANILHA
 function pdfGeral(){
-const { jsPDF } = window.jspdf;
-let doc=new jsPDF(); let y=10;
+  const { jsPDF } = window.jspdf;
+  let doc=new jsPDF();
 
-dados.forEach(d=>{
-let data=new Date(d.data.seconds*1000);
-let venc=new Date(data.getTime()+48*60*60*1000);
+  let y=10;
+  doc.text("RELATÓRIO GERAL",10,y);
+  y+=10;
 
-doc.text(d.nome+" | "+d.empresa+" | "+d.funcao+" | "+d.chave+" | "+d.motivo,10,y);
-y+=6;
-doc.text("Emprestado: "+data.toLocaleDateString()+" | Vence: "+venc.toLocaleDateString(),10,y);
-y+=10;
-});
-doc.save("relatorio.pdf");
+  dados.forEach(d=>{
+    let emp=new Date(d.data.seconds*1000);
+    let venc=new Date(emp.getTime()+48*60*60*1000);
+
+    let texto =
+      d.nome+" | "+d.empresa+" | "+d.funcao+" | "+d.chave+" | "+d.motivo;
+
+    doc.text(texto,10,y);
+    y+=6;
+
+    doc.text(
+      "Emprestado: "+emp.toLocaleDateString()+" | Vence: "+venc.toLocaleDateString(),
+      10,y
+    );
+
+    y+=6;
+
+    doc.line(10,y,200,y); // linha separadora
+    y+=6;
+  });
+
+  window.open(doc.output("bloburl")); // 🔥 NÃO BAIXA AUTOMATICO
 }
 
+// ATRASADOS
 function pdfAtrasados(){
-const { jsPDF } = window.jspdf;
-let doc=new jsPDF(); let y=10;
-let agora=new Date();
+  const { jsPDF } = window.jspdf;
+  let doc=new jsPDF();
+  let y=10;
+  let agora=new Date();
 
-dados.forEach(d=>{
-let data=new Date(d.data.seconds*1000);
-let venc=new Date(data.getTime()+48*60*60*1000);
+  dados.forEach(d=>{
+    let emp=new Date(d.data.seconds*1000);
+    let venc=new Date(emp.getTime()+48*60*60*1000);
 
-if(!d.devolvido && agora>venc){
-doc.text(d.nome+" | "+d.chave,10,y);
-y+=6;
+    if(!d.devolvido && agora>venc){
+
+      doc.text(d.nome+" | "+d.empresa+" | "+d.funcao+" | "+d.chave,10,y);
+      y+=6;
+      doc.line(10,y,200,y);
+      y+=6;
+    }
+  });
+
+  window.open(doc.output("bloburl"));
 }
-});
-doc.save("atrasados.pdf");
-}
-
 </script>
 
 </body>
@@ -245,4 +290,5 @@ doc.save("atrasados.pdf");
 `);
 });
 
-app.listen(process.env.PORT||3000);
+app.listen(process.env.PORT || 3000);
+``
