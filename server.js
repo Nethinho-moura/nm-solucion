@@ -33,7 +33,7 @@ th{background:#0b3c5d;color:white;}
 
 <div id="login">
 <h2>NM SOLUCION</h2>
-<input id="senhaLogin" type="password" placeholder="Senha">
+<input id="senhaLogin" type="password">
 <button onclick="entrar()">Entrar</button>
 </div>
 
@@ -59,8 +59,7 @@ th{background:#0b3c5d;color:white;}
 </div>
 
 <div class="card">
-<button onclick="pdfGeral()">Relatório Geral</button>
-<button onclick="pdfAtrasados()">Atrasados</button>
+<button onclick="pdfGeral()">Relatório</button>
 </div>
 
 <div class="card">
@@ -106,7 +105,6 @@ function entrar(){
   }
 }
 
-// 🔥 CARREGA DADOS TEMPO REAL
 function carregar(){
   db.collection("chaves").onSnapshot(snapshot=>{
     dados=[];
@@ -117,7 +115,6 @@ function carregar(){
   });
 }
 
-// ✅ EMPRESTAR + LIMPAR CAMPOS
 async function emprestar(){
   if(!nome.value||!empresa.value||!funcao.value||!chave.value||!motivo.value){
     alert("Preencha tudo"); return;
@@ -133,19 +130,20 @@ async function emprestar(){
     devolvido:false
   });
 
-  nome.value="";
-  empresa.value="";
-  funcao.value="";
-  chave.value="";
-  motivo.value="";
+  // ✅ LIMPA CAMPOS
+  document.getElementById("nome").value="";
+  document.getElementById("empresa").value="";
+  document.getElementById("funcao").value="";
+  document.getElementById("chave").value="";
+  document.getElementById("motivo").value="";
 }
 
-// ✅ DEVOLVER
+// ✅ DEVOLVER FUNCIONANDO
 async function devolver(id){
   await db.collection("chaves").doc(id).update({devolvido:true});
 }
 
-// ✅ EXCLUIR (CORRIGIDO)
+// ✅ EXCLUIR FUNCIONANDO
 async function excluir(id){
   let senha=prompt("Senha:");
   if(senha===SENHA_EXCLUIR){
@@ -153,7 +151,7 @@ async function excluir(id){
   }
 }
 
-// ✅ STATUS
+// ✅ TABELA CORRETA
 function render(){
   tabela.innerHTML="";
   let agora=new Date();
@@ -163,26 +161,26 @@ function render(){
     let prazo=new Date(data.getTime()+48*60*60*1000);
 
     let status="", cor="";
-    if(d.devolvido){status="DEVOLVIDO"; cor="gray";}
-    else if(agora>prazo){status="VENCIDO"; cor="red";}
-    else{status="EM DIA"; cor="green";}
+    if(d.devolvido){status="DEVOLVIDO";cor="gray";}
+    else if(agora>prazo){status="VENCIDO";cor="red";}
+    else{status="EM DIA";cor="green";}
 
-    tabela.innerHTML+=\`
-    <tr>
-      <td>\${d.nome}</td>
-      <td>\${d.empresa}</td>
-      <td>\${d.funcao}</td>
-      <td>\${d.chave}</td>
-      <td style="color:\${cor};font-weight:bold;">\${status}</td>
-      <td>
-        \${!d.devolvido?'<button onclick="devolver(\\''+d.id+'\\')">Devolver</button>':''}
-        <button onclick="excluir(\\''+d.id+'\\')">Excluir</button>
-      </td>
-    </tr>\`;
+    tabela.innerHTML+=
+    "<tr>"+
+      "<td>"+d.nome+"</td>"+
+      "<td>"+d.empresa+"</td>"+
+      "<td>"+d.funcao+"</td>"+
+      "<td>"+d.chave+"</td>"+
+      "<td style='color:"+cor+"'>"+status+"</td>"+
+      "<td>"+
+        (!d.devolvido ? "<button onclick=\\"devolver('"+d.id+"')\\">Devolver</button>" : "")+
+        "<button onclick=\\"excluir('"+d.id+"')\\">Excluir</button>"+
+      "</td>"+
+    "</tr>";
   });
 }
 
-// ✅ BACKUP
+// backup
 function backup(){
   const blob=new Blob([JSON.stringify(dados,null,2)],{type:"application/json"});
   const link=document.createElement("a");
@@ -191,11 +189,9 @@ function backup(){
   link.click();
 }
 
-// ✅ RESTAURAR
 function restaurar(e){
   const file=e.target.files[0];
   const reader=new FileReader();
-
   reader.onload=async ev=>{
     const lista=JSON.parse(ev.target.result);
     for(let item of lista){
@@ -204,59 +200,25 @@ function restaurar(e){
     }
     alert("Restaurado!");
   };
-
   reader.readAsText(file);
 }
 
-// ✅ RELATORIO COMPLETO (NÃO BAIXA)
+// PDF abre no navegador
 function pdfGeral(){
   const { jsPDF } = window.jspdf;
   let doc=new jsPDF();
-
   let y=10;
-  doc.text("RELATÓRIO GERAL",10,y);
-  y+=10;
 
   dados.forEach(d=>{
     let data=new Date(d.data.seconds*1000);
     let venc=new Date(data.getTime()+48*60*60*1000);
 
-    doc.text(
-      d.nome+" | "+d.empresa+" | "+d.funcao+" | "+d.chave+" | "+d.motivo,
-      10,y
-    );
+    doc.text(d.nome+" | "+d.empresa+" | "+d.funcao+" | "+d.chave,10,y);
     y+=6;
-
-    doc.text(
-      "Emprestado: "+data.toLocaleDateString()+" | Vence: "+venc.toLocaleDateString(),
-      10,y
-    );
-
+    doc.text("Emprestado: "+data.toLocaleDateString()+" | Vence: "+venc.toLocaleDateString(),10,y);
     y+=6;
     doc.line(10,y,200,y);
     y+=6;
-  });
-
-  window.open(doc.output("bloburl"));
-}
-
-// ✅ ATRASADOS
-function pdfAtrasados(){
-  const { jsPDF } = window.jspdf;
-  let doc=new jsPDF();
-  let y=10;
-  let agora=new Date();
-
-  dados.forEach(d=>{
-    let data=new Date(d.data.seconds*1000);
-    let venc=new Date(data.getTime()+48*60*60*1000);
-
-    if(!d.devolvido && agora>venc){
-      doc.text(d.nome+" | "+d.empresa+" | "+d.chave,10,y);
-      y+=6;
-      doc.line(10,y,200,y);
-      y+=6;
-    }
   });
 
   window.open(doc.output("bloburl"));
