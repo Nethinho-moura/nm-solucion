@@ -10,76 +10,65 @@ res.send(`
 <meta charset="UTF-8">
 <title>NM SOLUCION</title>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<!-- FIREBASE -->
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+
+<!-- PDF -->
+https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.jsscript>
 
 <style>
 body {
   font-family: Arial;
-  background: linear-gradient(135deg, #0b3c5d, #1f6fa5);
-  margin: 0;
+  background: linear-gradient(135deg,#0b3c5d,#1f6fa5);
+  margin:0;
 }
-
 #login {
-  width: 300px;
-  margin: 120px auto;
-  background: white;
-  padding: 20px;
-  text-align: center;
+  width:300px;
+  margin:120px auto;
+  background:white;
+  padding:20px;
+  text-align:center;
 }
-
 header {
   background:#0b3c5d;
   color:white;
   padding:10px;
   text-align:center;
 }
-
 .container {
   padding:20px;
   background:#eef2f7;
   min-height:100vh;
 }
-
 .card {
   background:white;
   padding:15px;
-  border-radius:8px;
   margin-bottom:15px;
 }
-
-.form-grid {
+.form-grid{
   display:grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px,1fr));
+  grid-template-columns:repeat(auto-fit,minmax(180px,1fr));
   gap:10px;
 }
-
-input, select, button {
+input,select,button{
   padding:8px;
   width:100%;
 }
-
-button {
+button{
   background:#0b3c5d;
   color:white;
   border:none;
-  cursor:pointer;
 }
-
-button:hover {
-  background:#155a87;
-}
-
-table {
+table{
   width:100%;
-  border-collapse: collapse;
+  border-collapse:collapse;
 }
-
-th, td {
+td,th{
   border:1px solid #ccc;
   padding:8px;
 }
-
-th {
+th{
   background:#0b3c5d;
   color:white;
 }
@@ -95,36 +84,29 @@ th {
 </div>
 
 <div id="sistema" style="display:none;">
-
 <header><h2>Controle de Chaves</h2></header>
 
 <div class="container">
 
 <div class="card">
-  <div class="form-grid">
-    <input id="nome" placeholder="Nome">
-    <input id="empresa" placeholder="Empresa">
-    <input id="funcao" placeholder="Função">
-    <input id="chave" placeholder="Chave / Apartamento">
-    <select id="motivo">
-      <option value="">Motivo</option>
-      <option>Perda</option>
-      <option>Serviço</option>
-    </select>
-  </div>
-  <br>
-  <button onclick="emprestar()">Emprestar</button>
+<div class="form-grid">
+<input id="nome" placeholder="Nome">
+<input id="empresa" placeholder="Empresa">
+<input id="funcao" placeholder="Função">
+<input id="chave" placeholder="Chave">
+<select id="motivo">
+<option value="">Motivo</option>
+<option>Perda</option>
+<option>Serviço</option>
+</select>
+</div>
+<br>
+<button onclick="emprestar()">Emprestar</button>
 </div>
 
 <div class="card">
-  <button onclick="pdfAtrasados()">PDF Atrasados</button>
-  <button onclick="pdfGeral()">PDF Geral</button>
-</div>
-
-<!-- ✅ BACKUP -->
-<div class="card">
-  <button onclick="backup()">💾 Fazer Backup</button>
-  <input type="file" onchange="restaurar(event)">
+<button onclick="pdfAtrasados()">PDF Atrasados</button>
+<button onclick="pdfGeral()">PDF Geral</button>
 </div>
 
 <div class="card">
@@ -147,31 +129,48 @@ th {
 </div>
 
 <script>
-const SENHA_LOGIN = "NMDIGITAL";
-const SENHA_EXCLUIR = "2805";
 
-let dados = JSON.parse(localStorage.getItem("dados")||"[]");
+// ✅ CONFIG FIREBASE (SEU)
+const firebaseConfig = {
+  apiKey: "AIzaSyC--ryk4Y2l_1zMWPCEcHffpsYI_zv9_s8",
+  authDomain: "nm-solucion.firebaseapp.com",
+  projectId: "nm-solucion"
+};
+
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+
+const SENHA_LOGIN = "NMDIGITAL";
+
+let dados = [];
 
 function entrar(){
-  if(senhaLogin.value===SENHA_LOGIN){
+  if(senhaLogin.value==="NMDIGITAL"){
     login.style.display="none";
     sistema.style.display="block";
-    render();
+    carregar();
   } else alert("Senha errada");
 }
 
-function salvar(){
-  localStorage.setItem("dados", JSON.stringify(dados));
-  render();
+// ✅ CARREGAR EM TEMPO REAL
+function carregar(){
+  db.collection("chaves").onSnapshot(snapshot=>{
+    dados = [];
+    snapshot.forEach(doc=>{
+      dados.push({...doc.data(), id:doc.id});
+    });
+    render();
+  });
 }
 
-function emprestar(){
-  if(!nome.value || !empresa.value || !funcao.value || !chave.value || !motivo.value){
+// ✅ SALVAR
+async function emprestar(){
+  if(!nome.value||!empresa.value||!funcao.value||!chave.value||!motivo.value){
     alert("Preencha tudo");
     return;
   }
 
-  dados.push({
+  await db.collection("chaves").add({
     nome:nome.value,
     empresa:empresa.value,
     funcao:funcao.value,
@@ -186,153 +185,61 @@ function emprestar(){
   funcao.value="";
   chave.value="";
   motivo.value="";
-
-  salvar();
 }
 
-function devolver(i){
-  dados[i].devolvido=true;
-  salvar();
+// ✅ DEVOLVER
+async function devolver(id){
+  await db.collection("chaves").doc(id).update({
+    devolvido:true
+  });
 }
 
-function excluir(i){
-  let senha=prompt("Senha:");
-  if(senha===SENHA_EXCLUIR){
-    dados.splice(i,1);
-    salvar();
-  } else alert("Errada");
+// ✅ EXCLUIR
+async function excluir(id){
+  let senha = prompt("Senha:");
+  if(senha==="2805"){
+    await db.collection("chaves").doc(id).delete();
+  } else alert("Senha errada");
 }
 
 function formatarData(d){
-  return new Date(d).toLocaleDateString("pt-BR");
+  return new Date(d.seconds*1000).toLocaleDateString("pt-BR");
 }
 
 function render(){
   tabela.innerHTML="";
-  let agora = new Date();
+  let agora=new Date();
 
-  dados.forEach((d,i)=>{
-    let prazo = new Date(new Date(d.data).getTime()+48*60*60*1000);
+  dados.forEach(d=>{
+    let emp = new Date(d.data.seconds*1000);
+    let prazo = new Date(emp.getTime()+48*60*60*1000);
 
     let status="";
     let cor="";
 
     if(d.devolvido){
-      status="DEVOLVIDO";
-      cor="gray";
+      status="DEVOLVIDO"; cor="gray";
     } else if(agora>prazo){
-      status="VENCIDO";
-      cor="red";
+      status="VENCIDO"; cor="red";
     } else {
-      status="EM DIA";
-      cor="green";
+      status="EM DIA"; cor="green";
     }
 
-    tabela.innerHTML += \`
+    tabela.innerHTML+=\`
     <tr>
       <td>\${d.nome}</td>
       <td>\${d.empresa}</td>
       <td>\${d.funcao}</td>
       <td>\${d.chave}</td>
-      <td style="color:\${cor}; font-weight:bold;">\${status}</td>
+      <td style="color:\${cor};font-weight:bold;">\${status}</td>
       <td>
-        \${!d.devolvido ? '<button onclick="devolver('+i+')">Devolver</button>' : ""}
-        <button onclick="excluir(\${i})">Excluir</button>
+        \${!d.devolvido ? '<button onclick="devolver("'+d.id+'")">Devolver</button>' : ""}
+        <button onclick="excluir("'+d.id+'")">Excluir</button>
       </td>
     </tr>\`;
   });
 }
 
-/* ✅ BACKUP */
-function backup(){
-  const blob = new Blob([JSON.stringify(dados, null, 2)], {type:"application/json"});
-  const link = document.createElement("a");
-  link.href = URL.createObjectURL(blob);
-  link.download = "backup_nm_solucion.json";
-  link.click();
-}
-
-/* ✅ RESTAURAR */
-function restaurar(event){
-  const file = event.target.files[0];
-  if(!file) return;
-
-  const reader = new FileReader();
-  reader.onload = e=>{
-    dados = JSON.parse(e.target.result);
-    salvar();
-    alert("Backup restaurado com sucesso!");
-  };
-
-  reader.readAsText(file);
-}
-
-/* PDF */
-function pdfGeral(){
-  const { jsPDF } = window.jspdf;
-  const doc = new jsPDF();
-  let y=10;
-
-  doc.text("RELATÓRIO GERAL",10,y);
-  y+=10;
-
-  dados.forEach(d=>{
-    let emp=new Date(d.data);
-    let venc=new Date(emp.getTime()+48*60*60*1000);
-
-    doc.text("------------------------------------------------",10,y); y+=5;
-
-    doc.text(
-      d.nome+" | Empresa: "+d.empresa+" | Função: "+d.funcao+" | Chave: "+d.chave+" | Motivo: "+d.motivo,
-      10,y
-    );
-    y+=6;
-
-    doc.text(
-      "Emprestado: "+formatarData(emp)+" | Vence: "+formatarData(venc),
-      10,y
-    );
-
-    y+=10;
-  });
-
-  window.open(doc.output("bloburl"));
-}
-
-function pdfAtrasados(){
-  const { jsPDF } = window.jspdf;
-  const doc = new jsPDF();
-  let y=10;
-  let agora=new Date();
-
-  doc.text("ATRASADOS",10,y);
-  y+=10;
-
-  dados.forEach(d=>{
-    let emp=new Date(d.data);
-    let venc=new Date(emp.getTime()+48*60*60*1000);
-
-    if(!d.devolvido && agora>venc){
-
-      doc.text("------------------------------------------------",10,y); y+=5;
-
-      doc.text(
-        d.nome+" | Empresa: "+d.empresa+" | Função: "+d.funcao+" | Chave: "+d.chave+" | Motivo: "+d.motivo,
-        10,y
-      );
-      y+=6;
-
-      doc.text(
-        "Emprestado: "+formatarData(emp)+" | Vence: "+formatarData(venc),
-        10,y
-      );
-
-      y+=10;
-    }
-  });
-
-  window.open(doc.output("bloburl"));
-}
 </script>
 
 </body>
@@ -341,4 +248,3 @@ function pdfAtrasados(){
 });
 
 app.listen(process.env.PORT || 3000);
-``
