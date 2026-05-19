@@ -1,344 +1,209 @@
 import express from "express";
+import pkg from "pg";
+
+const { Pool } = pkg;
 
 const app = express();
+app.use(express.json());
 
-app.get("/", (req, res) => {
+// ✅ conexão com banco (Render usa DATABASE_URL)
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  ssl: { rejectUnauthorized: false },
+});
+
+// ✅ criar tabela automática
+async function initDB(){
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS chaves (
+      id SERIAL PRIMARY KEY,
+      nome TEXT,
+      empresa TEXT,
+      funcao TEXT,
+      chave TEXT,
+      motivo TEXT,
+      data TIMESTAMP,
+      devolvido BOOLEAN
+    )
+  `);
+}
+initDB();
+
+// ✅ API
+
+app.get("/dados", async (req,res)=>{
+  const result = await pool.query("SELECT * FROM chaves ORDER BY id DESC");
+  res.json(result.rows);
+});
+
+app.post("/dados", async (req,res)=>{
+  const d = req.body;
+
+  await pool.query(
+    "INSERT INTO chaves (nome,empresa,funcao,chave,motivo,data,devolvido) VALUES ($1,$2,$3,$4,$5,$6,$7)",
+    [d.nome,d.empresa,d.funcao,d.chave,d.motivo,new Date(),false]
+  );
+
+  res.sendStatus(200);
+});
+
+app.put("/dados/:id", async (req,res)=>{
+  const id = req.params.id;
+  await pool.query(
+    "UPDATE chaves SET devolvido=true WHERE id=$1",
+    [id]
+  );
+  res.sendStatus(200);
+});
+
+app.delete("/dados/:id", async (req,res)=>{
+  const id = req.params.id;
+  await pool.query(
+    "DELETE FROM chaves WHERE id=$1",
+    [id]
+  );
+  res.sendStatus(200);
+});
+
+// ✅ FRONTEND
+app.get("/", (req,res)=>{
 res.send(`
 <!DOCTYPE html>
-<html lang="pt-br">
+<html>
 <head>
 <meta charset="UTF-8">
 <title>NM SOLUCION</title>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-
 <style>
-body {
-  font-family: Arial;
-  background: linear-gradient(135deg, #0b3c5d, #1f6fa5);
-  margin: 0;
-}
-
-#login {
-  width: 300px;
-  margin: 120px auto;
-  background: white;
-  padding: 20px;
-  text-align: center;
-}
-
-header {
-  background:#0b3c5d;
-  color:white;
-  padding:10px;
-  text-align:center;
-}
-
-.container {
-  padding:20px;
-  background:#eef2f7;
-  min-height:100vh;
-}
-
-.card {
-  background:white;
-  padding:15px;
-  border-radius:8px;
-  margin-bottom:15px;
-}
-
-.form-grid {
-  display:grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px,1fr));
-  gap:10px;
-}
-
-input, select, button {
-  padding:8px;
-  width:100%;
-}
-
-button {
-  background:#0b3c5d;
-  color:white;
-  border:none;
-  cursor:pointer;
-}
-
-button:hover {
-  background:#155a87;
-}
-
-table {
-  width:100%;
-  border-collapse: collapse;
-}
-
-th, td {
-  border:1px solid #ccc;
-  padding:8px;
-}
-
-th {
-  background:#0b3c5d;
-  color:white;
-}
+body {font-family:Arial;background:#eef2f7;margin:0;}
+.container{padding:20px;}
+input,select,button{margin:5px;padding:8px;width:100%;}
+table{width:100%;border-collapse:collapse;}
+td,th{border:1px solid #ccc;padding:5px;}
+tr:hover{background:#eee;}
 </style>
 </head>
 
 <body>
 
 <div id="login">
-  <h2>NM SOLUCION</h2>
-  <input type="password" id="senhaLogin" placeholder="Senha">
-  <button onclick="entrar()">Entrar</button>
+<input id="senha" type="password" placeholder="Senha">
+<button onclick="entrar()">Entrar</button>
 </div>
 
 <div id="sistema" style="display:none;">
-
-<header><h2>Controle de Chaves</h2></header>
-
 <div class="container">
 
-<div class="card">
-  <div class="form-grid">
-    <input id="nome" placeholder="Nome">
-    <input id="empresa" placeholder="Empresa">
-    <input id="funcao" placeholder="Função">
-    <input id="chave" placeholder="Chave / Apartamento">
-    <select id="motivo">
-      <option value="">Motivo</option>
-      <option>Perda</option>
-      <option>Serviço</option>
-    </select>
-  </div>
-  <br>
-  <button onclick="emprestar()">Emprestar</button>
-</div>
+<input id="nome" placeholder="Nome">
+<input id="empresa" placeholder="Empresa">
+<input id="funcao" placeholder="Função">
+<input id="chave" placeholder="Chave">
+<select id="motivo">
+<option value="">Motivo</option>
+<option>Perda</option>
+<option>Serviço</option>
+</select>
 
-<div class="card">
-  <button onclick="pdfAtrasados()">PDF Atrasados</button>
-  <button onclick="pdfGeral()">PDF Geral</button>
-</div>
+<button onclick="emprestar()">Emprestar</button>
 
-<!-- ✅ BACKUP -->
-<div class="card">
-  <button onclick="backup()">💾 Fazer Backup</button>
-  <input type="file" onchange="restaurar(event)">
-</div>
-
-<div class="card">
 <table>
 <thead>
 <tr>
-<th>Nome</th>
-<th>Empresa</th>
-<th>Função</th>
-<th>Chave</th>
-<th>Status</th>
-<th>Ações</th>
+<th>Nome</th><th>Empresa</th><th>Função</th><th>Chave</th><th>Status</th><th>Ações</th>
 </tr>
 </thead>
 <tbody id="tabela"></tbody>
 </table>
-</div>
 
 </div>
 </div>
 
 <script>
-const SENHA_LOGIN = "NMDIGITAL";
-const SENHA_EXCLUIR = "2805";
 
-let dados = JSON.parse(localStorage.getItem("dados")||"[]");
+let dados=[];
 
 function entrar(){
-  if(senhaLogin.value===SENHA_LOGIN){
+  if(senha.value==="NMDIGITAL"){
     login.style.display="none";
     sistema.style.display="block";
-    render();
-  } else alert("Senha errada");
+    carregar();
+  }
 }
 
-function salvar(){
-  localStorage.setItem("dados", JSON.stringify(dados));
+// ✅ carregar do banco
+async function carregar(){
+  const r=await fetch("/dados");
+  dados=await r.json();
   render();
 }
 
-function emprestar(){
-  if(!nome.value || !empresa.value || !funcao.value || !chave.value || !motivo.value){
-    alert("Preencha tudo");
-    return;
-  }
-
-  dados.push({
-    nome:nome.value,
-    empresa:empresa.value,
-    funcao:funcao.value,
-    chave:chave.value,
-    motivo:motivo.value,
-    data:new Date(),
-    devolvido:false
+// ✅ salvar
+async function emprestar(){
+  await fetch("/dados",{
+    method:"POST",
+    headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({
+      nome:nome.value,
+      empresa:empresa.value,
+      funcao:funcao.value,
+      chave:chave.value,
+      motivo:motivo.value
+    })
   });
 
-  nome.value="";
-  empresa.value="";
-  funcao.value="";
-  chave.value="";
+  nome.value=empresa.value=funcao.value=chave.value="";
   motivo.value="";
 
-  salvar();
+  carregar();
 }
 
-function devolver(i){
-  dados[i].devolvido=true;
-  salvar();
+// ✅ devolver
+async function devolver(id){
+  await fetch("/dados/"+id,{method:"PUT"});
+  carregar();
 }
 
-function excluir(i){
-  let senha=prompt("Senha:");
-  if(senha===SENHA_EXCLUIR){
-    dados.splice(i,1);
-    salvar();
-  } else alert("Errada");
+// ✅ excluir
+async function excluir(id){
+  if(prompt("Senha:")==="2805"){
+    await fetch("/dados/"+id,{method:"DELETE"});
+    carregar();
+  }
 }
 
-function formatarData(d){
-  return new Date(d).toLocaleDateString("pt-BR");
-}
-
+// render
 function render(){
   tabela.innerHTML="";
-  let agora = new Date();
-
-  dados.forEach((d,i)=>{
-    let prazo = new Date(new Date(d.data).getTime()+48*60*60*1000);
-
-    let status="";
-    let cor="";
-
-    if(d.devolvido){
-      status="DEVOLVIDO";
-      cor="gray";
-    } else if(agora>prazo){
-      status="VENCIDO";
-      cor="red";
-    } else {
-      status="EM DIA";
-      cor="green";
-    }
-
-    tabela.innerHTML += \`
-    <tr>
-      <td>\${d.nome}</td>
-      <td>\${d.empresa}</td>
-      <td>\${d.funcao}</td>
-      <td>\${d.chave}</td>
-      <td style="color:\${cor}; font-weight:bold;">\${status}</td>
-      <td>
-        \${!d.devolvido ? '<button onclick="devolver('+i+')">Devolver</button>' : ""}
-        <button onclick="excluir(\${i})">Excluir</button>
-      </td>
-    </tr>\`;
-  });
-}
-
-/* ✅ BACKUP */
-function backup(){
-  const blob = new Blob([JSON.stringify(dados, null, 2)], {type:"application/json"});
-  const link = document.createElement("a");
-  link.href = URL.createObjectURL(blob);
-  link.download = "backup_nm_solucion.json";
-  link.click();
-}
-
-/* ✅ RESTAURAR */
-function restaurar(event){
-  const file = event.target.files[0];
-  if(!file) return;
-
-  const reader = new FileReader();
-  reader.onload = e=>{
-    dados = JSON.parse(e.target.result);
-    salvar();
-    alert("Backup restaurado com sucesso!");
-  };
-
-  reader.readAsText(file);
-}
-
-/* PDF */
-function pdfGeral(){
-  const { jsPDF } = window.jspdf;
-  const doc = new jsPDF();
-  let y=10;
-
-  doc.text("RELATÓRIO GERAL",10,y);
-  y+=10;
-
-  dados.forEach(d=>{
-    let emp=new Date(d.data);
-    let venc=new Date(emp.getTime()+48*60*60*1000);
-
-    doc.text("------------------------------------------------",10,y); y+=5;
-
-    doc.text(
-      d.nome+" | Empresa: "+d.empresa+" | Função: "+d.funcao+" | Chave: "+d.chave+" | Motivo: "+d.motivo,
-      10,y
-    );
-    y+=6;
-
-    doc.text(
-      "Emprestado: "+formatarData(emp)+" | Vence: "+formatarData(venc),
-      10,y
-    );
-
-    y+=10;
-  });
-
-  window.open(doc.output("bloburl"));
-}
-
-function pdfAtrasados(){
-  const { jsPDF } = window.jspdf;
-  const doc = new jsPDF();
-  let y=10;
   let agora=new Date();
 
-  doc.text("ATRASADOS",10,y);
-  y+=10;
-
   dados.forEach(d=>{
-    let emp=new Date(d.data);
-    let venc=new Date(emp.getTime()+48*60*60*1000);
+    let prazo=new Date(d.data);
+    prazo.setHours(prazo.getHours()+48);
 
-    if(!d.devolvido && agora>venc){
+    let status="",cor="";
+    if(d.devolvido){status="DEVOLVIDO";cor="gray";}
+    else if(agora>prazo){status="VENCIDO";cor="red";}
+    else{status="EM DIA";cor="green";}
 
-      doc.text("------------------------------------------------",10,y); y+=5;
-
-      doc.text(
-        d.nome+" | Empresa: "+d.empresa+" | Função: "+d.funcao+" | Chave: "+d.chave+" | Motivo: "+d.motivo,
-        10,y
-      );
-      y+=6;
-
-      doc.text(
-        "Emprestado: "+formatarData(emp)+" | Vence: "+formatarData(venc),
-        10,y
-      );
-
-      y+=10;
-    }
+    tabela.innerHTML+=\`
+<tr>
+<td>\${d.nome}</td>
+<td>\${d.empresa}</td>
+<td>\${d.funcao}</td>
+<td>\${d.chave}</td>
+<td style="color:\${cor}">\${status}</td>
+<td>
+<button onclick="devolver(\${d.id})">Devolver</button>
+<button onclick="excluir(\${d.id})">Excluir</button>
+</td>
+</tr>\`;
   });
-
-  window.open(doc.output("bloburl"));
 }
-</script>
 
+</script>
 </body>
 </html>
 `);
 });
 
 app.listen(process.env.PORT || 3000);
-``
