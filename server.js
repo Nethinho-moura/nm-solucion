@@ -5,12 +5,13 @@ const { Pool } = pkg;
 const app = express();
 app.use(express.json());
 
+// ✅ BANCO
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: { rejectUnauthorized: false }
 });
 
-// criar tabela
+// ✅ CRIAR TABELA
 (async ()=>{
   await pool.query(`
     CREATE TABLE IF NOT EXISTS chaves (
@@ -27,7 +28,7 @@ const pool = new Pool({
   `);
 })();
 
-// rotas
+// ✅ API
 app.get("/dados", async (req,res)=>{
   const r = await pool.query("SELECT * FROM chaves ORDER BY id DESC");
   res.json(r.rows);
@@ -54,16 +55,18 @@ app.delete("/dados/:id", async (req,res)=>{
   res.sendStatus(200);
 });
 
+// ✅ FRONTEND
 app.get("/", (req,res)=>res.send(`
 <!DOCTYPE html>
 <html>
 <head>
 <meta charset="UTF-8">
 
+<!-- ✅ SCRIPT CORRETO -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 
 <style>
-body{font-family:Arial;margin:0;background:#eef2f7}
+body {font-family:Arial;margin:0;background:#eef2f7;}
 
 header{
   background:#0b3c5d;
@@ -73,42 +76,58 @@ header{
 
 .top-bar{
   display:flex;
-  gap:5px;
+  gap:6px;
   flex-wrap:wrap;
   align-items:center;
-}
-
-.top-bar input, .top-bar button{
-  font-size:11px;
-  padding:4px;
+  justify-content:center;
 }
 
 .top-bar button{
   background:white;
   color:#0b3c5d;
+  font-size:11px;
+  padding:4px 6px;
 }
 
-.container{padding:15px}
+.top-bar input{
+  font-size:11px;
+  padding:4px;
+}
+
+.container{padding:15px;}
 
 .form-grid{
   display:grid;
   grid-template-columns:repeat(auto-fit,minmax(150px,1fr));
-  gap:5px;
+  gap:6px;
 }
 
-input,select{padding:6px}
+input,select{padding:6px;}
 
 button{
   background:#0b3c5d;
   color:white;
   border:none;
-  padding:6px;
+  padding:7px;
 }
 
-table{width:100%;border-collapse:collapse;margin-top:10px}
-th,td{border:1px solid #ccc;padding:6px;font-size:12px}
+table{
+  width:100%;
+  border-collapse:collapse;
+  margin-top:10px;
+}
 
-th{background:#0b3c5d;color:white}
+th,td{
+  border:1px solid #ccc;
+  padding:6px;
+  font-size:12px;
+}
+
+th{
+  background:#0b3c5d;
+  color:white;
+}
+
 </style>
 </head>
 
@@ -117,19 +136,20 @@ th{background:#0b3c5d;color:white}
 <div id="login" style="text-align:center;padding:40px">
 <h2>NM SOLUCION</h2>
 <input type="password" id="senha">
+<br><br>
 <button onclick="entrar()">Entrar</button>
 </div>
 
 <div id="sistema" style="display:none">
 
 <header>
-<h3>Controle de Chaves</h3>
+<h3 style="text-align:center;">Controle de Chaves</h3>
 
 <div class="top-bar">
-<button onclick="pdfGeral()">Geral</button>
+<button onclick="pdfGeral()">Relatório Geral</button>
 <button onclick="pdfAtrasados()">Atrasados</button>
 <button onclick="backup()">Backup</button>
-<input id="busca" placeholder="Buscar..." oninput="filtrar()">
+<input id="busca" placeholder="🔎 Buscar" oninput="filtrar()">
 </div>
 
 </header>
@@ -142,15 +162,15 @@ th{background:#0b3c5d;color:white}
 <input id="funcao" placeholder="Função">
 <input id="cracha" placeholder="Crachá">
 <input id="chave" placeholder="Chave">
-
 <select id="motivo">
 <option>Perda</option>
 <option>Serviço</option>
 </select>
 </div>
 
-<br>
+<div style="text-align:center;margin-top:10px;">
 <button onclick="emprestar()">Emprestar</button>
+</div>
 
 <table>
 <thead>
@@ -164,7 +184,6 @@ th{background:#0b3c5d;color:white}
 <th>Ações</th>
 </tr>
 </thead>
-
 <tbody id="tabela"></tbody>
 </table>
 
@@ -172,6 +191,7 @@ th{background:#0b3c5d;color:white}
 </div>
 
 <script>
+
 let dados=[];
 
 function entrar(){
@@ -189,6 +209,10 @@ async function carregar(){
 }
 
 async function emprestar(){
+  if(!nome.value||!empresa.value||!funcao.value||!cracha.value||!chave.value||!motivo.value){
+    alert("Preencha tudo"); return;
+  }
+
   await fetch("/dados",{
     method:"POST",
     headers:{"Content-Type":"application/json"},
@@ -201,6 +225,10 @@ async function emprestar(){
       motivo:motivo.value
     })
   });
+
+  nome.value=empresa.value=funcao.value=cracha.value=chave.value="";
+  motivo.value="";
+
   carregar();
 }
 
@@ -212,10 +240,16 @@ function render(lista=dados){
     let emp=new Date(d.data);
     let venc=new Date(emp.getTime()+48*60*60*1000);
 
-    let status="EM DIA", cor="green";
+    let cor="green";
+    let status="EM DIA";
 
-    if(d.devolvido){status="DEVOLVIDO";cor="gray";}
-    else if(agora>venc){status="VENCIDO";cor="red";}
+    if(d.devolvido){
+      cor="gray";
+      status="DEVOLVIDO";
+    } else if(agora>venc){
+      cor="red";
+      status="VENCIDO";
+    }
 
     tabela.innerHTML+=\`
 <tr>
@@ -250,31 +284,45 @@ function filtrar(){
   render(dados.filter(d=>d.nome.toLowerCase().includes(t)));
 }
 
+// ✅ BACKUP
 function backup(){
-  const blob=new Blob([JSON.stringify(dados)],{type:"application/json"});
+  const blob=new Blob([JSON.stringify(dados,null,2)]);
   const link=document.createElement("a");
   link.href=URL.createObjectURL(blob);
   link.download="backup.json";
   link.click();
 }
 
+// ✅ RELATÓRIO GERAL COM DATA
 function pdfGeral(){
   const { jsPDF } = window.jspdf;
   const doc=new jsPDF();
   let y=10;
 
+  doc.text("RELATÓRIO GERAL",10,y); y+=10;
+
   dados.forEach(d=>{
+    let emp=new Date(d.data);
+    let venc=new Date(emp.getTime()+48*60*60*1000);
+
     doc.text(\`\${d.nome} | \${d.empresa} | \${d.chave}\`,10,y);
     y+=6;
+
+    doc.text("Emp: "+emp.toLocaleDateString()+" | Venc: "+venc.toLocaleDateString(),10,y);
+    y+=8;
   });
 
   window.open(doc.output("bloburl"));
 }
 
+// ✅ ATRASADOS COM DATA
 function pdfAtrasados(){
   const { jsPDF } = window.jspdf;
   const doc=new jsPDF();
-  let y=10, agora=new Date();
+  let y=10;
+  let agora=new Date();
+
+  doc.text("ATRASADOS",10,y); y+=10;
 
   dados.forEach(d=>{
     let emp=new Date(d.data);
@@ -283,11 +331,14 @@ function pdfAtrasados(){
     if(!d.devolvido && agora>venc){
       doc.text(\`\${d.nome} | \${d.chave}\`,10,y);
       y+=6;
+      doc.text("Emp: "+emp.toLocaleDateString()+" | Venc: "+venc.toLocaleDateString(),10,y);
+      y+=8;
     }
   });
 
   window.open(doc.output("bloburl"));
 }
+
 </script>
 
 </body>
