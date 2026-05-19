@@ -5,13 +5,12 @@ const { Pool } = pkg;
 const app = express();
 app.use(express.json());
 
-// ✅ BANCO
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: { rejectUnauthorized: false }
 });
 
-// ✅ CRIAR TABELA
+// ✅ BANCO
 (async ()=>{
   await pool.query(`
     CREATE TABLE IF NOT EXISTS chaves (
@@ -55,14 +54,13 @@ app.delete("/dados/:id", async (req,res)=>{
   res.sendStatus(200);
 });
 
-// ✅ FRONTEND
+// ✅ FRONT
 app.get("/", (req,res)=>res.send(`
 <!DOCTYPE html>
 <html>
 <head>
 <meta charset="UTF-8">
 
-<!-- ✅ SCRIPT CORRETO -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 
 <style>
@@ -74,12 +72,18 @@ header{
   padding:10px;
 }
 
+.titulo{
+  text-align:center;
+  font-size:20px;
+  font-weight:bold;
+}
+
 .top-bar{
   display:flex;
-  gap:6px;
-  flex-wrap:wrap;
-  align-items:center;
   justify-content:center;
+  gap:5px;
+  flex-wrap:wrap;
+  margin-top:5px;
 }
 
 .top-bar button{
@@ -109,6 +113,11 @@ button{
   color:white;
   border:none;
   padding:7px;
+}
+
+.emp{
+ text-align:center;
+ margin-top:10px;
 }
 
 table{
@@ -143,10 +152,11 @@ th{
 <div id="sistema" style="display:none">
 
 <header>
-<h3 style="text-align:center;">Controle de Chaves</h3>
+
+<div class="titulo">Controle de Chaves</div>
 
 <div class="top-bar">
-<button onclick="pdfGeral()">Relatório Geral</button>
+<button onclick="pdfGeral()">Geral</button>
 <button onclick="pdfAtrasados()">Atrasados</button>
 <button onclick="backup()">Backup</button>
 <input id="busca" placeholder="🔎 Buscar" oninput="filtrar()">
@@ -168,7 +178,7 @@ th{
 </select>
 </div>
 
-<div style="text-align:center;margin-top:10px;">
+<div class="emp">
 <button onclick="emprestar()">Emprestar</button>
 </div>
 
@@ -202,17 +212,15 @@ function entrar(){
   }
 }
 
+// carregar
 async function carregar(){
   const r=await fetch("/dados");
   dados=await r.json();
   render();
 }
 
+// emprestar
 async function emprestar(){
-  if(!nome.value||!empresa.value||!funcao.value||!cracha.value||!chave.value||!motivo.value){
-    alert("Preencha tudo"); return;
-  }
-
   await fetch("/dados",{
     method:"POST",
     headers:{"Content-Type":"application/json"},
@@ -227,11 +235,10 @@ async function emprestar(){
   });
 
   nome.value=empresa.value=funcao.value=cracha.value=chave.value="";
-  motivo.value="";
-
   carregar();
 }
 
+// render
 function render(lista=dados){
   tabela.innerHTML="";
   let agora=new Date();
@@ -243,13 +250,8 @@ function render(lista=dados){
     let cor="green";
     let status="EM DIA";
 
-    if(d.devolvido){
-      cor="gray";
-      status="DEVOLVIDO";
-    } else if(agora>venc){
-      cor="red";
-      status="VENCIDO";
-    }
+    if(d.devolvido){cor="gray";status="DEVOLVIDO";}
+    else if(agora>venc){cor="red";status="VENCIDO";}
 
     tabela.innerHTML+=\`
 <tr>
@@ -267,6 +269,7 @@ function render(lista=dados){
   });
 }
 
+// ações
 async function devolver(id){
   await fetch("/dados/"+id,{method:"PUT"});
   carregar();
@@ -279,12 +282,13 @@ async function excluir(id){
   }
 }
 
+// busca
 function filtrar(){
   let t=busca.value.toLowerCase();
   render(dados.filter(d=>d.nome.toLowerCase().includes(t)));
 }
 
-// ✅ BACKUP
+// backup
 function backup(){
   const blob=new Blob([JSON.stringify(dados,null,2)]);
   const link=document.createElement("a");
@@ -293,46 +297,99 @@ function backup(){
   link.click();
 }
 
-// ✅ RELATÓRIO GERAL COM DATA
+// ✅ RELATORIO GERAL PLANILHA
 function pdfGeral(){
   const { jsPDF } = window.jspdf;
-  const doc=new jsPDF();
+  const doc = new jsPDF();
   let y=10;
 
-  doc.text("RELATÓRIO GERAL",10,y); y+=10;
+  doc.setFontSize(10);
+  doc.text("RELATÓRIO GERAL",10,y);
+  y+=10;
+
+  doc.setFontSize(7);
+
+  doc.text("Nome",10,y);
+  doc.text("Empresa",40,y);
+  doc.text("Função",75,y);
+  doc.text("Chave",105,y);
+  doc.text("Data",140,y);
+  y+=4;
+
+  doc.line(10,y,200,y);
+  y+=4;
 
   dados.forEach(d=>{
     let emp=new Date(d.data);
     let venc=new Date(emp.getTime()+48*60*60*1000);
 
-    doc.text(\`\${d.nome} | \${d.empresa} | \${d.chave}\`,10,y);
+    doc.text(d.nome||"",10,y);
+    doc.text(d.empresa||"",40,y);
+    doc.text(d.funcao||"",75,y);
+    doc.text(d.chave||"",105,y);
+    doc.text(emp.toLocaleDateString(),140,y);
+
+    y+=4;
+
+    doc.text(
+      "Emp: "+emp.toLocaleDateString()+" | Venc: "+venc.toLocaleDateString(),
+      10,
+      y
+    );
+
     y+=6;
 
-    doc.text("Emp: "+emp.toLocaleDateString()+" | Venc: "+venc.toLocaleDateString(),10,y);
-    y+=8;
+    doc.line(10,y,200,y);
+    y+=4;
+
+    if(y>280){
+      doc.addPage();
+      y=10;
+    }
   });
 
   window.open(doc.output("bloburl"));
 }
 
-// ✅ ATRASADOS COM DATA
+// ✅ ATRASADOS PLANILHA
 function pdfAtrasados(){
   const { jsPDF } = window.jspdf;
   const doc=new jsPDF();
+
   let y=10;
   let agora=new Date();
 
-  doc.text("ATRASADOS",10,y); y+=10;
+  doc.setFontSize(10);
+  doc.text("ATRASADOS",10,y);
+  y+=10;
+
+  doc.setFontSize(7);
 
   dados.forEach(d=>{
     let emp=new Date(d.data);
     let venc=new Date(emp.getTime()+48*60*60*1000);
 
     if(!d.devolvido && agora>venc){
-      doc.text(\`\${d.nome} | \${d.chave}\`,10,y);
+
+      doc.text(d.nome,10,y);
+      doc.text(d.chave,80,y);
+      y+=4;
+
+      doc.text(
+        "Emp: "+emp.toLocaleDateString()+
+        " | Venc: "+venc.toLocaleDateString(),
+        10,y
+      );
+
       y+=6;
-      doc.text("Emp: "+emp.toLocaleDateString()+" | Venc: "+venc.toLocaleDateString(),10,y);
-      y+=8;
+
+      doc.line(10,y,200,y);
+      y+=4;
+
+      if(y>280){
+        doc.addPage();
+        y=10;
+      }
     }
   });
 
@@ -346,4 +403,3 @@ function pdfAtrasados(){
 `));
 
 app.listen(process.env.PORT||3000);
-``
