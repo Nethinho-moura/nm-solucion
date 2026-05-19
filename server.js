@@ -1,19 +1,18 @@
 import express from "express";
 import pkg from "pg";
-
 const { Pool } = pkg;
 
 const app = express();
 app.use(express.json());
 
-// ✅ conexão com banco (Render usa DATABASE_URL)
+// ✅ CONEXÃO COM BANCO
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: { rejectUnauthorized: false },
 });
 
-// ✅ criar tabela automática
-async function initDB(){
+// ✅ CRIA TABELA
+async function init(){
   await pool.query(`
     CREATE TABLE IF NOT EXISTS chaves (
       id SERIAL PRIMARY KEY,
@@ -27,73 +26,75 @@ async function initDB(){
     )
   `);
 }
-initDB();
+init();
 
-// ✅ API
-
+// ✅ APIS
 app.get("/dados", async (req,res)=>{
-  const result = await pool.query("SELECT * FROM chaves ORDER BY id DESC");
-  res.json(result.rows);
+  const r = await pool.query("SELECT * FROM chaves ORDER BY id DESC");
+  res.json(r.rows);
 });
 
 app.post("/dados", async (req,res)=>{
   const d = req.body;
-
   await pool.query(
     "INSERT INTO chaves (nome,empresa,funcao,chave,motivo,data,devolvido) VALUES ($1,$2,$3,$4,$5,$6,$7)",
     [d.nome,d.empresa,d.funcao,d.chave,d.motivo,new Date(),false]
   );
-
   res.sendStatus(200);
 });
 
 app.put("/dados/:id", async (req,res)=>{
-  const id = req.params.id;
-  await pool.query(
-    "UPDATE chaves SET devolvido=true WHERE id=$1",
-    [id]
-  );
+  await pool.query("UPDATE chaves SET devolvido=true WHERE id=$1",[req.params.id]);
   res.sendStatus(200);
 });
 
 app.delete("/dados/:id", async (req,res)=>{
-  const id = req.params.id;
-  await pool.query(
-    "DELETE FROM chaves WHERE id=$1",
-    [id]
-  );
+  await pool.query("DELETE FROM chaves WHERE id=$1",[req.params.id]);
   res.sendStatus(200);
 });
 
-// ✅ FRONTEND
+// ✅ SUA TELA ORIGINAL (SEM MUDAR VISUAL)
 app.get("/", (req,res)=>{
 res.send(`
 <!DOCTYPE html>
-<html>
+<html lang="pt-br">
 <head>
 <meta charset="UTF-8">
 <title>NM SOLUCION</title>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
 <style>
-body {font-family:Arial;background:#eef2f7;margin:0;}
-.container{padding:20px;}
-input,select,button{margin:5px;padding:8px;width:100%;}
+body {font-family:Arial;background:linear-gradient(135deg,#0b3c5d,#1f6fa5);margin:0;}
+#login{width:300px;margin:120px auto;background:white;padding:20px;text-align:center;}
+header{background:#0b3c5d;color:white;padding:10px;text-align:center;}
+.container{padding:20px;background:#eef2f7;min-height:100vh;}
+.card{background:white;padding:15px;border-radius:8px;margin-bottom:15px;}
+.form-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;}
+input,select,button{padding:8px;width:100%;}
+button{background:#0b3c5d;color:white;border:none;}
+button:hover{background:#155a87;}
 table{width:100%;border-collapse:collapse;}
-td,th{border:1px solid #ccc;padding:5px;}
-tr:hover{background:#eee;}
+th,td{border:1px solid #ccc;padding:8px;}
+th{background:#0b3c5d;color:white;}
 </style>
 </head>
 
 <body>
 
 <div id="login">
-<input id="senha" type="password" placeholder="Senha">
+<h2>NM SOLUCION</h2>
+<input type="password" id="senhaLogin">
 <button onclick="entrar()">Entrar</button>
 </div>
 
 <div id="sistema" style="display:none;">
+<header><h2>Controle de Chaves</h2></header>
+
 <div class="container">
 
+<div class="card">
+<div class="form-grid">
 <input id="nome" placeholder="Nome">
 <input id="empresa" placeholder="Empresa">
 <input id="funcao" placeholder="Função">
@@ -103,9 +104,12 @@ tr:hover{background:#eee;}
 <option>Perda</option>
 <option>Serviço</option>
 </select>
-
+</div>
+<br>
 <button onclick="emprestar()">Emprestar</button>
+</div>
 
+<div class="card">
 <table>
 <thead>
 <tr>
@@ -114,6 +118,7 @@ tr:hover{background:#eee;}
 </thead>
 <tbody id="tabela"></tbody>
 </table>
+</div>
 
 </div>
 </div>
@@ -123,21 +128,21 @@ tr:hover{background:#eee;}
 let dados=[];
 
 function entrar(){
-  if(senha.value==="NMDIGITAL"){
+  if(senhaLogin.value==="NMDIGITAL"){
     login.style.display="none";
     sistema.style.display="block";
     carregar();
   }
 }
 
-// ✅ carregar do banco
+// ✅ CARREGAR DO BANCO
 async function carregar(){
-  const r=await fetch("/dados");
-  dados=await r.json();
+  const r = await fetch("/dados");
+  dados = await r.json();
   render();
 }
 
-// ✅ salvar
+// ✅ EMPRESTAR
 async function emprestar(){
   await fetch("/dados",{
     method:"POST",
@@ -157,13 +162,13 @@ async function emprestar(){
   carregar();
 }
 
-// ✅ devolver
+// ✅ DEVOLVER
 async function devolver(id){
   await fetch("/dados/"+id,{method:"PUT"});
   carregar();
 }
 
-// ✅ excluir
+// ✅ EXCLUIR
 async function excluir(id){
   if(prompt("Senha:")==="2805"){
     await fetch("/dados/"+id,{method:"DELETE"});
@@ -171,7 +176,7 @@ async function excluir(id){
   }
 }
 
-// render
+// ✅ RENDER
 function render(){
   tabela.innerHTML="";
   let agora=new Date();
@@ -201,6 +206,7 @@ function render(){
 }
 
 </script>
+
 </body>
 </html>
 `);
