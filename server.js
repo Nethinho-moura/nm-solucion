@@ -5,22 +5,14 @@ const { Pool } = pkg;
 const app = express();
 app.use(express.json());
 
-// ✅ BANCO
+// BANCO
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: { rejectUnauthorized: false }
 });
 
-// ✅ CRIA TABELAS
-(async ()=>{
-  await pool.query(`
-    CREATE TABLE IF NOT EXISTS usuarios (
-      id SERIAL PRIMARY KEY,
-      nome TEXT,
-      senha TEXT
-    )
-  `);
-
+// TABELAS
+(async () => {
   await pool.query(`
     CREATE TABLE IF NOT EXISTS chaves (
       id SERIAL PRIMARY KEY,
@@ -35,9 +27,17 @@ const pool = new Pool({
       devolvido BOOLEAN
     )
   `);
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS usuarios (
+      id SERIAL PRIMARY KEY,
+      nome TEXT,
+      senha TEXT
+    )
+  `);
 })();
 
-// ✅ APIs
+// APIs USUARIOS
 app.get("/usuarios", async (req,res)=>{
   const r = await pool.query("SELECT * FROM usuarios");
   res.json(r.rows);
@@ -54,6 +54,7 @@ app.delete("/usuarios/:id", async (req,res)=>{
   res.sendStatus(200);
 });
 
+// APIs CHAVES
 app.get("/dados", async (req,res)=>{
   const r = await pool.query("SELECT * FROM chaves ORDER BY id DESC");
   res.json(r.rows);
@@ -76,10 +77,10 @@ app.put("/dados/:id", async (req,res)=>{
 });
 
 
-// ✅ FRONTEND
+// ✅ TELA PRINCIPAL (SEU SISTEMA ORIGINAL)
 app.get("/", (req,res)=>res.send(`
 <!DOCTYPE html>
-<html>
+<html lang="pt-br">
 <head>
 <meta charset="UTF-8">
 <title>NM SOLUCION</title>
@@ -91,37 +92,32 @@ body {font-family:Arial;background:#eef2f7;margin:0;}
 header{background:#0b3c5d;color:white;padding:10px;text-align:center;}
 .container{padding:20px;}
 .card{background:white;padding:15px;border-radius:8px;margin-bottom:15px;}
-input,select,button{padding:8px;width:100%;margin:5px 0;}
+input,select,button{padding:8px;width:100%;}
 button{background:#0b3c5d;color:white;border:none;}
-button:hover{background:#155a87;}
 table{width:100%;border-collapse:collapse;}
 th,td{border:1px solid #ccc;padding:8px;}
-.alerta{animation:piscando 1s infinite;}
-@keyframes piscando{0%{background:#ffcccc;}100%{background:white;}}
+th{background:#0b3c5d;color:white;}
 </style>
 </head>
 
 <body>
 
-<div id="login" class="card">
+<div id="login">
 <h2>NM SOLUCION</h2>
-<input type="password" id="senhaAdmin" placeholder="Senha">
+<input type="password" id="senhaLogin">
 <button onclick="entrar()">Entrar</button>
 </div>
 
-<div id="sistema" style="display:none">
-
+<div id="sistema" style="display:none;">
 <header><h2>Controle de Chaves</h2></header>
 
 <div class="container">
 
-<!-- 🔍 BUSCA -->
+<!-- BOTÃO NOVO -->
 <div class="card">
-<input id="busca" placeholder="🔎 Pesquisar" oninput="filtrar()">
-<button onclick="exportarExcel()">Exportar Excel</button>
+<button onclick="abrirUsuarios()">👥 Gerenciar Recepcionistas</button>
 </div>
 
-<!-- 📋 CADASTRO -->
 <div class="card">
 <input id="nome" placeholder="Nome">
 <input id="empresa" placeholder="Empresa">
@@ -130,27 +126,14 @@ th,td{border:1px solid #ccc;padding:8px;}
 <input id="chave" placeholder="Chave">
 
 <select id="motivo">
-<option>Perda</option>
-<option>Serviço</option>
+<option>Perda</option><option>Serviço</option>
 </select>
 
-<!-- ✅ USUARIO SELECIONADO -->
 <select id="usuarioUso"></select>
 
 <button onclick="emprestar()">Emprestar</button>
 </div>
 
-<!-- 🔑 CRIAR RECEPCIONISTA -->
-<div class="card">
-<h3>Criar Recepcionista</h3>
-<input id="novoNome" placeholder="Nome">
-<input type="password" id="novaSenha" placeholder="Senha">
-<button onclick="criarUsuario()">Criar</button>
-
-<div id="listaUsuarios"></div>
-</div>
-
-<!-- 📊 TABELA -->
 <div class="card">
 <table>
 <thead>
@@ -158,7 +141,6 @@ th,td{border:1px solid #ccc;padding:8px;}
 <th>Nome</th>
 <th>Usuário</th>
 <th>Status</th>
-<th>Ação</th>
 </tr>
 </thead>
 <tbody id="tabela"></tbody>
@@ -169,54 +151,36 @@ th,td{border:1px solid #ccc;padding:8px;}
 </div>
 
 <script>
-let dados=[];
-let usuarios=[];
 
-// LOGIN ADMIN
+let dados=[];
+
+// LOGIN
 function entrar(){
-  if(senhaAdmin.value==="NMDIGITAL"){
+  if(senhaLogin.value==="NMDIGITAL"){
     login.style.display="none";
     sistema.style.display="block";
-    carregarUsuarios();
     carregar();
+    carregarUsuarios();
   }
 }
 
-// ✅ USUÁRIOS
+// ABRIR NOVA ABA
+function abrirUsuarios(){
+  window.open("/usuariosPage","_blank");
+}
+
+// CARREGAR USUARIOS
 async function carregarUsuarios(){
-  const r=await fetch("/usuarios");
-  usuarios=await r.json();
+  const r = await fetch("/usuarios");
+  const usuarios = await r.json();
 
   usuarioUso.innerHTML="";
-  listaUsuarios.innerHTML="";
-
   usuarios.forEach(u=>{
     usuarioUso.innerHTML+=\`<option>\${u.nome}</option>\`;
-
-    listaUsuarios.innerHTML+=\`
-\${u.nome}
-<button onclick="excluir(\${u.id})">Excluir</button><br>\`;
   });
 }
 
-async function criarUsuario(){
-  await fetch("/usuarios",{
-    method:"POST",
-    headers:{"Content-Type":"application/json"},
-    body:JSON.stringify({
-      nome:novoNome.value,
-      senha:novaSenha.value
-    })
-  });
-  carregarUsuarios();
-}
-
-async function excluir(id){
-  await fetch("/usuarios/"+id,{method:"DELETE"});
-  carregarUsuarios();
-}
-
-// ✅ CHAVES
+// CHAVES
 async function carregar(){
   const r=await fetch("/dados");
   dados=await r.json();
@@ -224,72 +188,85 @@ async function carregar(){
 }
 
 async function emprestar(){
-  await fetch("/dados",{
-    method:"POST",
-    headers:{"Content-Type":"application/json"},
-    body:JSON.stringify({
-      nome:nome.value,
-      empresa:empresa.value,
-      funcao:funcao.value,
-      cracha:cracha.value,
-      chave:chave.value,
-      motivo:motivo.value,
-      usuario:usuarioUso.value
-    })
-  });
+  await fetch("/dados",{method:"POST",
+  headers:{"Content-Type":"application/json"},
+  body:JSON.stringify({
+    nome:nome.value,
+    empresa:empresa.value,
+    funcao:funcao.value,
+    cracha:cracha.value,
+    chave:chave.value,
+    motivo:motivo.value,
+    usuario:usuarioUso.value
+  })});
 
-  nome.value=empresa.value=funcao.value=cracha.value=chave.value="";
   carregar();
 }
 
-// ✅ RENDER
-function render(lista=dados){
+function render(){
   tabela.innerHTML="";
-  let agora=new Date();
-
-  lista.forEach(d=>{
-    let prazo=new Date(d.data);
-    prazo.setHours(prazo.getHours()+48);
-
-    let atrasado=!d.devolvido && agora>prazo;
-
+  dados.forEach(d=>{
     tabela.innerHTML+=\`
-<tr class="\${atrasado?'alerta':''}">
+<tr>
 <td>\${d.nome}</td>
 <td>\${d.usuario}</td>
-<td>\${d.devolvido?'DEVOLVIDO':(atrasado?'VENCIDO':'EM DIA')}</td>
-<td><button onclick="devolver(\${d.id})">Devolver</button></td>
+<td>\${d.devolvido?'OK':'ABERTO'}</td>
 </tr>\`;
   });
 }
 
-async function devolver(id){
-  await fetch("/dados/"+id,{method:"PUT"});
+</script>
+</body>
+</html>
+`));
+
+
+// ✅ TELA DE USUARIOS (POPUP)
+app.get("/usuariosPage",(req,res)=>res.send(`
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Usuários</title>
+</head>
+<body>
+
+<h2>Gerenciar Recepcionistas</h2>
+
+<input id="nome" placeholder="Nome">
+<input id="senha" type="password" placeholder="Senha">
+
+<button onclick="criar()">Criar</button>
+
+<div id="lista"></div>
+
+<script>
+
+async function carregar(){
+  const r=await fetch("/usuarios");
+  const data=await r.json();
+
+  lista.innerHTML="";
+  data.forEach(u=>{
+    lista.innerHTML+=\`
+\${u.nome} <button onclick="excluir(\${u.id})">Excluir</button><br>\`;
+  });
+}
+
+async function criar(){
+  await fetch("/usuarios",{method:"POST",
+  headers:{"Content-Type":"application/json"},
+  body:JSON.stringify({nome:nome.value,senha:senha.value})});
+
   carregar();
 }
 
-// 🔍 BUSCA
-function filtrar(){
-  let txt=busca.value.toLowerCase();
-  let f=dados.filter(d=>
-    d.nome.toLowerCase().includes(txt) ||
-    d.usuario.toLowerCase().includes(txt)
-  );
-  render(f);
+async function excluir(id){
+  await fetch("/usuarios/"+id,{method:"DELETE"});
+  carregar();
 }
 
-// ✅ EXCEL
-function exportarExcel(){
-  let csv="Nome,Usuário\\n";
-  dados.forEach(d=>{
-    csv+=\`\${d.nome},\${d.usuario}\\n\`;
-  });
-  let blob=new Blob([csv]);
-  let link=document.createElement("a");
-  link.href=URL.createObjectURL(blob);
-  link.download="relatorio.csv";
-  link.click();
-}
+carregar();
 
 </script>
 
