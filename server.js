@@ -5,14 +5,13 @@ const { Pool } = pkg;
 const app = express();
 app.use(express.json());
 
-// ✅ CONEXÃO
+// ✅ BANCO
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: { rejectUnauthorized: false }
 });
 
-// ✅ CRIAR TABELA COM CRACHA
-(async ()=> {
+(async ()=>{
   await pool.query(`
     CREATE TABLE IF NOT EXISTS chaves (
       id SERIAL PRIMARY KEY,
@@ -22,38 +21,36 @@ const pool = new Pool({
       cracha TEXT,
       chave TEXT,
       motivo TEXT,
+      usuario TEXT,
       data TIMESTAMP,
       devolvido BOOLEAN
     )
   `);
 
-  // ✅ GARANTIR QUE CRAchá exista (não quebra se já existir)
   await pool.query(`
-    ALTER TABLE chaves 
-    ADD COLUMN IF NOT EXISTS cracha TEXT;
+    CREATE TABLE IF NOT EXISTS usuarios (
+      id SERIAL PRIMARY KEY,
+      nome TEXT,
+      senha TEXT
+    )
   `);
 })();
 
-// ✅ API
+// ✅ APIs
 app.get("/dados", async (req,res)=>{
   const r = await pool.query("SELECT * FROM chaves ORDER BY id DESC");
   res.json(r.rows);
 });
 
 app.post("/dados", async (req,res)=>{
-  try {
-    const d = req.body;
+  const d=req.body;
 
-    await pool.query(
-      "INSERT INTO chaves (nome,empresa,funcao,cracha,chave,motivo,data,devolvido) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)",
-      [d.nome,d.empresa,d.funcao,d.cracha,d.chave,d.motivo,new Date(),false]
-    );
+  await pool.query(
+    "INSERT INTO chaves (nome,empresa,funcao,cracha,chave,motivo,usuario,data,devolvido) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)",
+    [d.nome,d.empresa,d.funcao,d.cracha,d.chave,d.motivo,d.usuario,new Date(),false]
+  );
 
-    res.sendStatus(200);
-  } catch (e){
-    console.error(e);
-    res.sendStatus(500);
-  }
+  res.sendStatus(200);
 });
 
 app.put("/dados/:id", async (req,res)=>{
@@ -66,87 +63,68 @@ app.delete("/dados/:id", async (req,res)=>{
   res.sendStatus(200);
 });
 
-// ✅ FRONTEND COMPLETO
 app.get("/", (req,res)=>res.send(`
+
 <!DOCTYPE html>
-<html lang="pt-br">
+<html>
 <head>
 <meta charset="UTF-8">
 <title>NM SOLUCION</title>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js
 
 <style>
-body {font-family:Arial;background:linear-gradient(135deg,#0b3c5d,#1f6fa5);margin:0;}
-#login{width:300px;margin:120px auto;background:white;padding:20px;text-align:center;}
-header{background:#0b3c5d;color:white;padding:10px;text-align:center;}
-.container{padding:20px;background:#eef2f7;}
-.card{background:white;padding:15px;border-radius:8px;margin-bottom:15px;}
-.form-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;}
-input,select,button{padding:8px;width:100%;}
-button{background:#0b3c5d;color:white;border:none;}
-button:hover{background:#155a87;}
-table{width:100%;border-collapse:collapse;}
-th,td{border:1px solid #ccc;padding:8px;}
-th{background:#0b3c5d;color:white;}
+body{font-family:Arial;background:#eef2f7;margin:0}
+header{background:#0b3c5d;color:white;padding:10px;text-align:center}
+.container{padding:10px}
+.card{background:white;padding:10px;margin:10px;border-radius:6px}
+input,select,button{padding:8px;width:100%;margin:3px}
+button{background:#0b3c5d;color:white;border:none}
+.alerta{animation:piscando 1s infinite}
+@keyframes piscando{0%{background:#ffcccc;}100%{background:white;}}
 </style>
 </head>
 
 <body>
 
-<div id="login">
-<h2>NM SOLUCION</h2>
-<input type="password" id="senhaLogin">
-<button onclick="entrar()">Entrar</button>
-</div>
-
-<div id="sistema" style="display:none;">
 <header><h2>Controle de Chaves</h2></header>
 
 <div class="container">
 
 <div class="card">
-<div class="form-grid">
+<input id="busca" placeholder="🔎 Pesquisar..." oninput="filtrar()">
+<button onclick="exportarExcel()">Exportar Excel</button>
+</div>
 
+<div class="card">
+<input id="usuario" placeholder="Recepcionista">
+<input type="password" id="senha" placeholder="Senha (280516)">
+<button onclick="login()">Entrar</button>
+</div>
+
+<div id="sistema" style="display:none">
+
+<div class="card">
 <input id="nome" placeholder="Nome">
 <input id="empresa" placeholder="Empresa">
 <input id="funcao" placeholder="Função">
-<input id="cracha" placeholder="ID do Crachá">
-<input id="chave" placeholder="Chave / Apartamento">
-
+<input id="cracha" placeholder="ID Crachá">
+<input id="chave" placeholder="Chave">
 <select id="motivo">
-<option value="">Motivo</option>
-<option>Perda</option>
-<option>Serviço</option>
+<option>Perda</option><option>Serviço</option>
 </select>
 
-</div>
-<br>
 <button onclick="emprestar()">Emprestar</button>
 </div>
 
 <div class="card">
-<button onclick="pdfAtrasados()">PDF Atrasados</button>
 <button onclick="pdfGeral()">PDF Geral</button>
 </div>
 
 <div class="card">
-<button onclick="backup()">💾 Fazer Backup</button>
-<input type="file" onchange="restaurar(event)">
-</div>
-
-<div class="card">
-<table>
+<table width="100%">
 <thead>
-<tr>
-<th>Nome</th>
-<th>Empresa</th>
-<th>Função</th>
-<th>Crachá</th>
-<th>Chave</th>
-<th>Status</th>
-<th>Ações</th>
-</tr>
+<tr><th>Nome</th><th>Crachá</th><th>Chave</th><th>Status</th><th>Ação</th></tr>
 </thead>
 <tbody id="tabela"></tbody>
 </table>
@@ -158,14 +136,13 @@ th{background:#0b3c5d;color:white;}
 <script>
 
 let dados=[];
+let usuarioLogado="";
 
-// LOGIN
-function entrar(){
-  if(senhaLogin.value==="NMDIGITAL"){
-    login.style.display="none";
+function login(){
+  if(senha.value==="280516"){
+    usuarioLogado=usuario.value;
     sistema.style.display="block";
-    carregar();
-  } else alert("Senha errada");
+  }
 }
 
 // CARREGAR
@@ -177,12 +154,7 @@ async function carregar(){
 
 // EMPRESTAR
 async function emprestar(){
-  if(!nome.value||!empresa.value||!funcao.value||!cracha.value||!chave.value||!motivo.value){
-    alert("Preencha tudo"); return;
-  }
-
-  await fetch("/dados",{
-    method:"POST",
+  await fetch("/dados",{method:"POST",
     headers:{"Content-Type":"application/json"},
     body:JSON.stringify({
       nome:nome.value,
@@ -190,14 +162,37 @@ async function emprestar(){
       funcao:funcao.value,
       cracha:cracha.value,
       chave:chave.value,
-      motivo:motivo.value
+      motivo:motivo.value,
+      usuario:usuarioLogado
     })
   });
 
   nome.value=empresa.value=funcao.value=cracha.value=chave.value="";
-  motivo.value="";
-
   carregar();
+}
+
+// RENDER
+function render(lista=dados){
+  tabela.innerHTML="";
+  let agora=new Date();
+
+  lista.forEach(d=>{
+    let prazo=new Date(d.data);
+    prazo.setHours(prazo.getHours()+48);
+
+    let atrasado=!d.devolvido && agora>prazo;
+
+    tabela.innerHTML+=\`
+<tr class="\${atrasado?'alerta':''}">
+<td>\${d.nome}</td>
+<td>\${d.cracha}</td>
+<td>\${d.chave}</td>
+<td>\${d.devolvido?'DEVOLVIDO':(atrasado?'VENCIDO':'EM DIA')}</td>
+<td>
+<button onclick="devolver(\${d.id})">Devolver</button>
+</td>
+</tr>\`;
+  });
 }
 
 // DEVOLVER
@@ -206,134 +201,46 @@ async function devolver(id){
   carregar();
 }
 
-// EXCLUIR
-async function excluir(id){
-  if(prompt("Senha:")==="2805"){
-    await fetch("/dados/"+id,{method:"DELETE"});
-    carregar();
-  }
+// BUSCA
+function filtrar(){
+  let txt=busca.value.toLowerCase();
+  let f=dados.filter(d=>
+    (d.nome||"").toLowerCase().includes(txt) ||
+    (d.empresa||"").toLowerCase().includes(txt) ||
+    (d.cracha||"").toLowerCase().includes(txt)
+  );
+  render(f);
 }
 
-// RENDER
-function render(){
-  tabela.innerHTML="";
-  let agora=new Date();
-
+// EXCEL
+function exportarExcel(){
+  let csv="Nome,Empresa,Crachá,Chave\\n";
   dados.forEach(d=>{
-    let emp=new Date(d.data);
-    let venc=new Date(emp.getTime()+48*60*60*1000);
-
-    let status="",cor="";
-    if(d.devolvido){status="DEVOLVIDO";cor="gray";}
-    else if(agora>venc){status="VENCIDO";cor="red";}
-    else{status="EM DIA";cor="green";}
-
-    tabela.innerHTML+=\`
-<tr>
-<td>\${d.nome}</td>
-<td>\${d.empresa}</td>
-<td>\${d.funcao}</td>
-<td>\${d.cracha||""}</td>
-<td>\${d.chave}</td>
-<td style="color:\${cor};font-weight:bold;">\${status}</td>
-<td>
-\${!d.devolvido ? '<button onclick="devolver('+d.id+')">Devolver</button>' : ''}
-<button onclick="excluir(\${d.id})">Excluir</button>
-</td>
-</tr>\`;
+    csv+=\`\${d.nome},\${d.empresa},\${d.cracha},\${d.chave}\\n\`;
   });
-}
 
-// BACKUP
-function backup(){
-  const blob=new Blob([JSON.stringify(dados,null,2)],{type:"application/json"});
-  const link=document.createElement("a");
+  let blob=new Blob([csv]);
+  let link=document.createElement("a");
   link.href=URL.createObjectURL(blob);
-  link.download="backup.json";
+  link.download="relatorio.csv";
   link.click();
 }
 
-// RESTAURAR
-function restaurar(event){
-  const file=event.target.files[0];
-  const reader=new FileReader();
-  reader.onload=async e=>{
-    let lista=JSON.parse(e.target.result);
-    for(let i of lista){
-      delete i.id;
-      await fetch("/dados",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(i)});
-    }
-    alert("Restaurado!");
-    carregar();
-  };
-  reader.readAsText(file);
-}
-
-// ✅ PDF ESTILO PLANILHA
+// PDF
 function pdfGeral(){
-  const { jsPDF } = window.jspdf;
-  const doc=new jsPDF();
+  const {jsPDF}=window.jspdf;
+  let doc=new jsPDF();
   let y=10;
 
-  doc.setFontSize(12);
-  doc.text("RELATÓRIO GERAL",10,y);
-  y+=10;
-
-  doc.setFontSize(8);
-
-  doc.text("Nome",10,y);
-  doc.text("Empresa",40,y);
-  doc.text("Função",80,y);
-  doc.text("Crachá",110,y);
-  doc.text("Chave",140,y);
-
-  y+=5;
-  doc.line(10,y,200,y);
-  y+=5;
-
   dados.forEach(d=>{
-    let emp=new Date(d.data);
-    let venc=new Date(emp.getTime()+48*60*60*1000);
-
-    doc.text(d.nome||"",10,y);
-    doc.text(d.empresa||"",40,y);
-    doc.text(d.funcao||"",80,y);
-    doc.text(d.cracha||"",110,y);
-    doc.text(d.chave||"",140,y);
-
-    y+=5;
-    doc.text("Emp: "+emp.toLocaleDateString()+" | Venc: "+venc.toLocaleDateString(),10,y);
-
-    y+=8;
-
-    if(y>280){doc.addPage();y=10;}
+    doc.text(\`\${d.nome} | \${d.chave} | \${d.cracha}\`,10,y);
+    y+=6;
   });
 
   window.open(doc.output("bloburl"));
 }
 
-// PDF ATRASADOS
-function pdfAtrasados(){
-  const { jsPDF } = window.jspdf;
-  const doc=new jsPDF();
-  let y=10;
-  let agora=new Date();
-
-  doc.text("ATRASADOS",10,y);
-  y+=10;
-
-  dados.forEach(d=>{
-    let emp=new Date(d.data);
-    let venc=new Date(emp.getTime()+48*60*60*1000);
-
-    if(!d.devolvido && agora>venc){
-      doc.text(d.nome+" | "+d.chave+" | "+emp.toLocaleDateString(),10,y);
-      y+=6;
-    }
-  });
-
-  window.open(doc.output("bloburl"));
-}
+carregar();
 
 </script>
 
