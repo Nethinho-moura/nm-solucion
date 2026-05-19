@@ -10,6 +10,7 @@ const pool = new Pool({
   ssl: { rejectUnauthorized: false }
 });
 
+// ✅ BANCO
 (async ()=>{
   await pool.query(`
     CREATE TABLE IF NOT EXISTS chaves (
@@ -26,7 +27,7 @@ const pool = new Pool({
   `);
 })();
 
-// APIs
+// ✅ API
 app.get("/dados", async (req,res)=>{
   const r = await pool.query("SELECT * FROM chaves ORDER BY id DESC");
   res.json(r.rows);
@@ -53,17 +54,18 @@ app.delete("/dados/:id", async (req,res)=>{
   res.sendStatus(200);
 });
 
-// FRONT
+// ✅ FRONTEND
 app.get("/", (req,res)=>res.send(`
 <!DOCTYPE html>
 <html>
 <head>
 <meta charset="UTF-8">
 
-https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js
+<!-- ✅ CORRIGIDO -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 
 <style>
-body{font-family:Arial;margin:0;background:#eef2f7}
+body {font-family:Arial;margin:0;background:#eef2f7;}
 
 header{
   background:#0b3c5d;
@@ -73,14 +75,14 @@ header{
 
 .titulo{
   text-align:center;
-  font-size:20px;
+  font-size:22px;
   font-weight:bold;
 }
 
 .top-bar{
   display:flex;
   justify-content:center;
-  gap:5px;
+  gap:6px;
   flex-wrap:wrap;
   margin-top:5px;
 }
@@ -136,6 +138,7 @@ th{background:#0b3c5d;color:white;}
 <div id="sistema" style="display:none">
 
 <header>
+
 <div class="titulo">Controle de Chaves</div>
 
 <div class="top-bar">
@@ -143,11 +146,10 @@ th{background:#0b3c5d;color:white;}
 <button onclick="pdfAtrasados()">Atrasados</button>
 <button onclick="backup()">Backup</button>
 
-<!-- ✅ RESTAURAR -->
-<input type="file" id="fileRestore" onchange="restaurar(event)" style="background:white;color:black;">
-
+<input type="file" onchange="restaurar(event)" style="background:white;">
 <input id="busca" placeholder="🔎 Buscar" oninput="filtrar()">
 </div>
+
 </header>
 
 <div class="container">
@@ -223,11 +225,10 @@ async function emprestar(){
   });
 
   nome.value=empresa.value=funcao.value=cracha.value=chave.value="";
-  motivo.value="";
-
   carregar();
 }
 
+// tabela
 function render(lista=dados){
   tabela.innerHTML="";
   let agora=new Date();
@@ -242,19 +243,19 @@ function render(lista=dados){
     if(d.devolvido){cor="gray";status="DEVOLVIDO";}
     else if(agora>venc){cor="red";status="VENCIDO";}
 
-    tabela.innerHTML+=\`
-<tr>
-<td>\${d.nome}</td>
-<td>\${d.empresa}</td>
-<td>\${d.funcao}</td>
-<td>\${d.cracha}</td>
-<td>\${d.chave}</td>
-<td style="color:\${cor};font-weight:bold">\${status}</td>
-<td>
-<button onclick="devolver(\${d.id})">Devolver</button>
-<button onclick="excluir(\${d.id})">Excluir</button>
-</td>
-</tr>\`;
+    tabela.innerHTML+=
+    '<tr>'+
+    '<td>'+d.nome+'</td>'+
+    '<td>'+d.empresa+'</td>'+
+    '<td>'+d.funcao+'</td>'+
+    '<td>'+d.cracha+'</td>'+
+    '<td>'+d.chave+'</td>'+
+    '<td style="color:'+cor+';font-weight:bold">'+status+'</td>'+
+    '<td>'+
+    '<button onclick="devolver('+d.id+')">Devolver</button>'+
+    '<button onclick="excluir('+d.id+')">Excluir</button>'+
+    '</td>'+
+    '</tr>';
   });
 }
 
@@ -270,13 +271,13 @@ async function excluir(id){
   }
 }
 
-// 🔎 BUSCA
+// busca
 function filtrar(){
   let t=busca.value.toLowerCase();
   render(dados.filter(d=>d.nome.toLowerCase().includes(t)));
 }
 
-// 💾 BACKUP
+// backup
 function backup(){
   const blob=new Blob([JSON.stringify(dados,null,2)]);
   const link=document.createElement("a");
@@ -285,19 +286,19 @@ function backup(){
   link.click();
 }
 
-// ✅ RESTAURAR COM SENHA
+// restaurar com senha
 function restaurar(event){
   let senha = prompt("Senha:");
-  if(senha !== "2805"){
+  if(senha!=="2805"){
     alert("Senha incorreta");
     return;
   }
 
-  const file = event.target.files[0];
-  const reader = new FileReader();
+  const file=event.target.files[0];
+  const reader=new FileReader();
 
-  reader.onload = async e=>{
-    let lista = JSON.parse(e.target.result);
+  reader.onload=async e=>{
+    let lista=JSON.parse(e.target.result);
 
     for(let i of lista){
       delete i.id;
@@ -308,17 +309,79 @@ function restaurar(event){
       });
     }
 
-    alert("Backup restaurado!");
+    alert("Restaurado!");
     carregar();
   };
 
   reader.readAsText(file);
 }
 
-// PDFs (mantidos iguais)
-function pdfGeral(){ ... }
+// PDF GERAL (PLANILHA)
+function pdfGeral(){
+  const { jsPDF } = window.jspdf;
+  const doc=new jsPDF();
 
-function pdfAtrasados(){ ... }
+  let y=10;
+
+  doc.setFontSize(10);
+  doc.text("RELATÓRIO GERAL",10,y); y+=10;
+
+  doc.setFontSize(7);
+
+  doc.text("Nome",10,y);
+  doc.text("Empresa",40,y);
+  doc.text("Função",75,y);
+  doc.text("Chave",105,y);
+
+  y+=4;
+  doc.line(10,y,200,y);
+  y+=4;
+
+  dados.forEach(d=>{
+    let emp=new Date(d.data);
+    let venc=new Date(emp.getTime()+48*60*60*1000);
+
+    doc.text(d.nome,10,y);
+    doc.text(d.empresa,40,y);
+    doc.text(d.funcao,75,y);
+    doc.text(d.chave,105,y);
+
+    y+=4;
+
+    doc.text("Emp: "+emp.toLocaleDateString()+" | Venc: "+venc.toLocaleDateString(),10,y);
+
+    y+=6;
+
+    doc.line(10,y,200,y);
+    y+=4;
+  });
+
+  window.open(doc.output("bloburl"));
+}
+
+// ATRASADOS
+function pdfAtrasados(){
+  const { jsPDF } = window.jspdf;
+  const doc=new jsPDF();
+
+  let y=10;
+  let agora=new Date();
+
+  doc.setFontSize(10);
+  doc.text("ATRASADOS",10,y); y+=10;
+
+  dados.forEach(d=>{
+    let emp=new Date(d.data);
+    let venc=new Date(emp.getTime()+48*60*60*1000);
+
+    if(!d.devolvido && agora>venc){
+      doc.text(d.nome+" | "+d.chave,10,y);
+      y+=6;
+    }
+  });
+
+  window.open(doc.output("bloburl"));
+}
 
 </script>
 
@@ -327,4 +390,3 @@ function pdfAtrasados(){ ... }
 `));
 
 app.listen(process.env.PORT||3000);
-``
