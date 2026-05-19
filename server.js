@@ -161,8 +161,8 @@ th{background:#0b3c5d;color:white;}
 <input id="cracha" placeholder="Crachá">
 <input id="chave" placeholder="Chave">
 <select id="motivo">
-<option>Perda</option>
-<option>Serviço</option>
+<option>Perca</option>
+<option>Serviço/Manutenção</option>
 </select>
 </div>
 
