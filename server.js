@@ -5,20 +5,21 @@ const { Pool } = pkg;
 const app = express();
 app.use(express.json());
 
-// ✅ CONEXÃO
+// ✅ BANCO
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: { rejectUnauthorized: false }
 });
 
 // ✅ CRIAR TABELA
-(async () => {
+(async ()=> {
   await pool.query(`
     CREATE TABLE IF NOT EXISTS chaves (
       id SERIAL PRIMARY KEY,
       nome TEXT,
       empresa TEXT,
       funcao TEXT,
+      cracha TEXT,
       chave TEXT,
       motivo TEXT,
       data TIMESTAMP,
@@ -27,7 +28,7 @@ const pool = new Pool({
   `);
 })();
 
-// ✅ API
+// ✅ APIS
 app.get("/dados", async (req,res)=>{
   const r = await pool.query("SELECT * FROM chaves ORDER BY id DESC");
   res.json(r.rows);
@@ -35,10 +36,12 @@ app.get("/dados", async (req,res)=>{
 
 app.post("/dados", async (req,res)=>{
   const d = req.body;
+
   await pool.query(
-    "INSERT INTO chaves (nome,empresa,funcao,chave,motivo,data,devolvido) VALUES ($1,$2,$3,$4,$5,$6,$7)",
-    [d.nome,d.empresa,d.funcao,d.chave,d.motivo,new Date(),false]
+    "INSERT INTO chaves (nome,empresa,funcao,cracha,chave,motivo,data,devolvido) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)",
+    [d.nome,d.empresa,d.funcao,d.cracha,d.chave,d.motivo,new Date(),false]
   );
+
   res.sendStatus(200);
 });
 
@@ -54,6 +57,7 @@ app.delete("/dados/:id", async (req,res)=>{
 
 // ✅ FRONTEND COMPLETO
 app.get("/", (req,res)=>res.send(`
+
 <!DOCTYPE html>
 <html lang="pt-br">
 <head>
@@ -66,7 +70,7 @@ app.get("/", (req,res)=>res.send(`
 body {font-family:Arial;background:linear-gradient(135deg,#0b3c5d,#1f6fa5);margin:0;}
 #login{width:300px;margin:120px auto;background:white;padding:20px;text-align:center;}
 header{background:#0b3c5d;color:white;padding:10px;text-align:center;}
-.container{padding:20px;background:#eef2f7;min-height:100vh;}
+.container{padding:20px;background:#eef2f7;}
 .card{background:white;padding:15px;border-radius:8px;margin-bottom:15px;}
 .form-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;}
 input,select,button{padding:8px;width:100%;}
@@ -93,15 +97,19 @@ th{background:#0b3c5d;color:white;}
 
 <div class="card">
 <div class="form-grid">
+
 <input id="nome" placeholder="Nome">
 <input id="empresa" placeholder="Empresa">
 <input id="funcao" placeholder="Função">
+<input id="cracha" placeholder="ID do Crachá">
 <input id="chave" placeholder="Chave / Apartamento">
+
 <select id="motivo">
 <option value="">Motivo</option>
 <option>Perda</option>
 <option>Serviço</option>
 </select>
+
 </div>
 <br>
 <button onclick="emprestar()">Emprestar</button>
@@ -121,7 +129,13 @@ th{background:#0b3c5d;color:white;}
 <table>
 <thead>
 <tr>
-<th>Nome</th><th>Empresa</th><th>Função</th><th>Chave</th><th>Status</th><th>Ações</th>
+<th>Nome</th>
+<th>Empresa</th>
+<th>Função</th>
+<th>Crachá</th>
+<th>Chave</th>
+<th>Status</th>
+<th>Ações</th>
 </tr>
 </thead>
 <tbody id="tabela"></tbody>
@@ -135,7 +149,7 @@ th{background:#0b3c5d;color:white;}
 
 let dados=[];
 
-// ✅ LOGIN
+// LOGIN
 function entrar(){
   if(senhaLogin.value==="NMDIGITAL"){
     login.style.display="none";
@@ -144,15 +158,19 @@ function entrar(){
   } else alert("Senha errada");
 }
 
-// ✅ CARREGAR
+// CARREGAR
 async function carregar(){
   const r=await fetch("/dados");
   dados=await r.json();
   render();
 }
 
-// ✅ EMPRESTAR
+// EMPRESTAR
 async function emprestar(){
+  if(!nome.value||!empresa.value||!funcao.value||!cracha.value||!chave.value||!motivo.value){
+    alert("Preencha tudo"); return;
+  }
+
   await fetch("/dados",{
     method:"POST",
     headers:{"Content-Type":"application/json"},
@@ -160,24 +178,25 @@ async function emprestar(){
       nome:nome.value,
       empresa:empresa.value,
       funcao:funcao.value,
+      cracha:cracha.value,
       chave:chave.value,
       motivo:motivo.value
     })
   });
 
-  nome.value=empresa.value=funcao.value=chave.value="";
+  nome.value=empresa.value=funcao.value=cracha.value=chave.value="";
   motivo.value="";
 
   carregar();
 }
 
-// ✅ DEVOLVER
+// DEVOLVER
 async function devolver(id){
   await fetch("/dados/"+id,{method:"PUT"});
   carregar();
 }
 
-// ✅ EXCLUIR
+// EXCLUIR
 async function excluir(id){
   if(prompt("Senha:")==="2805"){
     await fetch("/dados/"+id,{method:"DELETE"});
@@ -185,18 +204,18 @@ async function excluir(id){
   }
 }
 
-// ✅ RENDER
+// RENDER
 function render(){
   tabela.innerHTML="";
   let agora=new Date();
 
   dados.forEach(d=>{
-    let prazo=new Date(d.data);
-    prazo.setHours(prazo.getHours()+48);
+    let emp=new Date(d.data);
+    let venc=new Date(emp.getTime()+48*60*60*1000);
 
     let status="",cor="";
     if(d.devolvido){status="DEVOLVIDO";cor="gray";}
-    else if(agora>prazo){status="VENCIDO";cor="red";}
+    else if(agora>venc){status="VENCIDO";cor="red";}
     else{status="EM DIA";cor="green";}
 
     tabela.innerHTML+=\`
@@ -204,6 +223,7 @@ function render(){
 <td>\${d.nome}</td>
 <td>\${d.empresa}</td>
 <td>\${d.funcao}</td>
+<td>\${d.cracha}</td>
 <td>\${d.chave}</td>
 <td style="color:\${cor};font-weight:bold;">\${status}</td>
 <td>
@@ -214,7 +234,7 @@ function render(){
   });
 }
 
-// ✅ BACKUP
+// BACKUP
 function backup(){
   const blob=new Blob([JSON.stringify(dados,null,2)],{type:"application/json"});
   const link=document.createElement("a");
@@ -223,19 +243,15 @@ function backup(){
   link.click();
 }
 
-// ✅ RESTAURAR
+// RESTAURAR
 function restaurar(event){
   const file=event.target.files[0];
   const reader=new FileReader();
   reader.onload=async e=>{
     let lista=JSON.parse(e.target.result);
-    for(let item of lista){
-      delete item.id;
-      await fetch("/dados",{
-        method:"POST",
-        headers:{"Content-Type":"application/json"},
-        body:JSON.stringify(item)
-      });
+    for(let i of lista){
+      delete i.id;
+      await fetch("/dados",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(i)});
     }
     alert("Restaurado!");
     carregar();
@@ -243,39 +259,38 @@ function restaurar(event){
   reader.readAsText(file);
 }
 
-// ✅ PDF GERAL
+// PDF GERAL
 function pdfGeral(){
-  const { jsPDF } = window.jspdf;
+  const {jsPDF}=window.jspdf;
   const doc=new jsPDF();
   let y=10;
 
-  doc.text("RELATÓRIO GERAL",10,y);
-  y+=10;
-
   dados.forEach(d=>{
-    doc.text(\`\${d.nome} | \${d.empresa} | \${d.funcao} | \${d.chave}\`,10,y);
+    let emp=new Date(d.data);
+    let venc=new Date(emp.getTime()+48*60*60*1000);
+
+    doc.text(d.nome+" | "+d.empresa+" | "+d.funcao+" | "+d.chave,10,y);
     y+=6;
+    doc.text("Emprestado: "+emp.toLocaleDateString()+" | Vence: "+venc.toLocaleDateString(),10,y);
+    y+=8;
   });
 
   window.open(doc.output("bloburl"));
 }
 
-// ✅ PDF ATRASADOS
+// PDF ATRASADOS
 function pdfAtrasados(){
-  const { jsPDF } = window.jspdf;
+  const {jsPDF}=window.jspdf;
   const doc=new jsPDF();
   let y=10;
   let agora=new Date();
 
-  doc.text("ATRASADOS",10,y);
-  y+=10;
-
   dados.forEach(d=>{
-    let prazo=new Date(d.data);
-    prazo.setHours(prazo.getHours()+48);
+    let emp=new Date(d.data);
+    let venc=new Date(emp.getTime()+48*60*60*1000);
 
-    if(!d.devolvido && agora>prazo){
-      doc.text(\`\${d.nome} | \${d.chave}\`,10,y);
+    if(!d.devolvido && agora>venc){
+      doc.text(d.nome+" | "+d.chave+" | "+emp.toLocaleDateString(),10,y);
       y+=6;
     }
   });
@@ -289,4 +304,4 @@ function pdfAtrasados(){
 </html>
 `));
 
-app.listen(process.env.PORT || 3000);
+app.listen(process.env.PORT||3000);
