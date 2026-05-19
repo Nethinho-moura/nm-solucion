@@ -10,6 +10,7 @@ const pool = new Pool({
   ssl: { rejectUnauthorized: false }
 });
 
+// criar tabela
 (async ()=>{
   await pool.query(`
     CREATE TABLE IF NOT EXISTS chaves (
@@ -26,6 +27,7 @@ const pool = new Pool({
   `);
 })();
 
+// rotas
 app.get("/dados", async (req,res)=>{
   const r = await pool.query("SELECT * FROM chaves ORDER BY id DESC");
   res.json(r.rows);
@@ -53,16 +55,15 @@ app.delete("/dados/:id", async (req,res)=>{
 });
 
 app.get("/", (req,res)=>res.send(`
-
 <!DOCTYPE html>
 <html>
 <head>
 <meta charset="UTF-8">
 
-https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 
 <style>
-body {font-family:Arial;margin:0;background:#eef2f7;}
+body{font-family:Arial;margin:0;background:#eef2f7}
 
 header{
   background:#0b3c5d;
@@ -72,58 +73,42 @@ header{
 
 .top-bar{
   display:flex;
-  gap:6px;
+  gap:5px;
   flex-wrap:wrap;
-  margin-top:5px;
   align-items:center;
+}
+
+.top-bar input, .top-bar button{
+  font-size:11px;
+  padding:4px;
 }
 
 .top-bar button{
   background:white;
   color:#0b3c5d;
-  font-size:11px;
-  padding:4px 6px;
 }
 
-.top-bar input{
-  font-size:11px;
-  padding:4px;
-}
-
-.container{padding:15px;}
+.container{padding:15px}
 
 .form-grid{
   display:grid;
-  grid-template-columns:repeat(auto-fit,minmax(160px,1fr));
-  gap:6px;
+  grid-template-columns:repeat(auto-fit,minmax(150px,1fr));
+  gap:5px;
 }
 
-input,select{padding:6px;}
+input,select{padding:6px}
 
 button{
   background:#0b3c5d;
   color:white;
   border:none;
-  padding:7px;
-}
-
-table{
-  width:100%;
-  border-collapse:collapse;
-  margin-top:10px;
-}
-
-th,td{
-  border:1px solid #ccc;
   padding:6px;
-  font-size:12px;
 }
 
-th{
-  background:#0b3c5d;
-  color:white;
-}
+table{width:100%;border-collapse:collapse;margin-top:10px}
+th,td{border:1px solid #ccc;padding:6px;font-size:12px}
 
+th{background:#0b3c5d;color:white}
 </style>
 </head>
 
@@ -140,12 +125,11 @@ th{
 <header>
 <h3>Controle de Chaves</h3>
 
-<!-- ✅ TUDO NA BARRA -->
 <div class="top-bar">
 <button onclick="pdfGeral()">Geral</button>
 <button onclick="pdfAtrasados()">Atrasados</button>
 <button onclick="backup()">Backup</button>
-<input id="busca" placeholder="🔎 Buscar" oninput="filtrar()">
+<input id="busca" placeholder="Buscar..." oninput="filtrar()">
 </div>
 
 </header>
@@ -153,7 +137,6 @@ th{
 <div class="container">
 
 <div class="form-grid">
-
 <input id="nome" placeholder="Nome">
 <input id="empresa" placeholder="Empresa">
 <input id="funcao" placeholder="Função">
@@ -164,7 +147,6 @@ th{
 <option>Perda</option>
 <option>Serviço</option>
 </select>
-
 </div>
 
 <br>
@@ -173,3 +155,144 @@ th{
 <table>
 <thead>
 <tr>
+<th>Nome</th>
+<th>Empresa</th>
+<th>Função</th>
+<th>Crachá</th>
+<th>Chave</th>
+<th>Status</th>
+<th>Ações</th>
+</tr>
+</thead>
+
+<tbody id="tabela"></tbody>
+</table>
+
+</div>
+</div>
+
+<script>
+let dados=[];
+
+function entrar(){
+  if(senha.value==="NMDIGITAL"){
+    login.style.display="none";
+    sistema.style.display="block";
+    carregar();
+  }
+}
+
+async function carregar(){
+  const r=await fetch("/dados");
+  dados=await r.json();
+  render();
+}
+
+async function emprestar(){
+  await fetch("/dados",{
+    method:"POST",
+    headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({
+      nome:nome.value,
+      empresa:empresa.value,
+      funcao:funcao.value,
+      cracha:cracha.value,
+      chave:chave.value,
+      motivo:motivo.value
+    })
+  });
+  carregar();
+}
+
+function render(lista=dados){
+  tabela.innerHTML="";
+  let agora=new Date();
+
+  lista.forEach(d=>{
+    let emp=new Date(d.data);
+    let venc=new Date(emp.getTime()+48*60*60*1000);
+
+    let status="EM DIA", cor="green";
+
+    if(d.devolvido){status="DEVOLVIDO";cor="gray";}
+    else if(agora>venc){status="VENCIDO";cor="red";}
+
+    tabela.innerHTML+=\`
+<tr>
+<td>\${d.nome}</td>
+<td>\${d.empresa}</td>
+<td>\${d.funcao}</td>
+<td>\${d.cracha}</td>
+<td>\${d.chave}</td>
+<td style="color:\${cor};font-weight:bold">\${status}</td>
+<td>
+<button onclick="devolver(\${d.id})">Devolver</button>
+<button onclick="excluir(\${d.id})">Excluir</button>
+</td>
+</tr>\`;
+  });
+}
+
+async function devolver(id){
+  await fetch("/dados/"+id,{method:"PUT"});
+  carregar();
+}
+
+async function excluir(id){
+  if(prompt("Senha:")==="2805"){
+    await fetch("/dados/"+id,{method:"DELETE"});
+    carregar();
+  }
+}
+
+function filtrar(){
+  let t=busca.value.toLowerCase();
+  render(dados.filter(d=>d.nome.toLowerCase().includes(t)));
+}
+
+function backup(){
+  const blob=new Blob([JSON.stringify(dados)],{type:"application/json"});
+  const link=document.createElement("a");
+  link.href=URL.createObjectURL(blob);
+  link.download="backup.json";
+  link.click();
+}
+
+function pdfGeral(){
+  const { jsPDF } = window.jspdf;
+  const doc=new jsPDF();
+  let y=10;
+
+  dados.forEach(d=>{
+    doc.text(\`\${d.nome} | \${d.empresa} | \${d.chave}\`,10,y);
+    y+=6;
+  });
+
+  window.open(doc.output("bloburl"));
+}
+
+function pdfAtrasados(){
+  const { jsPDF } = window.jspdf;
+  const doc=new jsPDF();
+  let y=10, agora=new Date();
+
+  dados.forEach(d=>{
+    let emp=new Date(d.data);
+    let venc=new Date(emp.getTime()+48*60*60*1000);
+
+    if(!d.devolvido && agora>venc){
+      doc.text(\`\${d.nome} | \${d.chave}\`,10,y);
+      y+=6;
+    }
+  });
+
+  window.open(doc.output("bloburl"));
+}
+</script>
+
+</body>
+</html>
+`));
+
+app.listen(process.env.PORT||3000);
+``
