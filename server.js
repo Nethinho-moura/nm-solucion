@@ -5,14 +5,14 @@ const { Pool } = pkg;
 const app = express();
 app.use(express.json());
 
-// ✅ CONEXÃO COM BANCO
+// ✅ CONEXÃO
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  ssl: { rejectUnauthorized: false },
+  ssl: { rejectUnauthorized: false }
 });
 
-// ✅ CRIA TABELA
-async function init(){
+// ✅ CRIAR TABELA
+(async () => {
   await pool.query(`
     CREATE TABLE IF NOT EXISTS chaves (
       id SERIAL PRIMARY KEY,
@@ -25,10 +25,9 @@ async function init(){
       devolvido BOOLEAN
     )
   `);
-}
-init();
+})();
 
-// ✅ APIS
+// ✅ API
 app.get("/dados", async (req,res)=>{
   const r = await pool.query("SELECT * FROM chaves ORDER BY id DESC");
   res.json(r.rows);
@@ -53,9 +52,8 @@ app.delete("/dados/:id", async (req,res)=>{
   res.sendStatus(200);
 });
 
-// ✅ SUA TELA ORIGINAL (SEM MUDAR VISUAL)
-app.get("/", (req,res)=>{
-res.send(`
+// ✅ FRONTEND COMPLETO
+app.get("/", (req,res)=>res.send(`
 <!DOCTYPE html>
 <html lang="pt-br">
 <head>
@@ -98,7 +96,7 @@ th{background:#0b3c5d;color:white;}
 <input id="nome" placeholder="Nome">
 <input id="empresa" placeholder="Empresa">
 <input id="funcao" placeholder="Função">
-<input id="chave" placeholder="Chave">
+<input id="chave" placeholder="Chave / Apartamento">
 <select id="motivo">
 <option value="">Motivo</option>
 <option>Perda</option>
@@ -107,6 +105,16 @@ th{background:#0b3c5d;color:white;}
 </div>
 <br>
 <button onclick="emprestar()">Emprestar</button>
+</div>
+
+<div class="card">
+<button onclick="pdfAtrasados()">PDF Atrasados</button>
+<button onclick="pdfGeral()">PDF Geral</button>
+</div>
+
+<div class="card">
+<button onclick="backup()">💾 Fazer Backup</button>
+<input type="file" onchange="restaurar(event)">
 </div>
 
 <div class="card">
@@ -127,18 +135,19 @@ th{background:#0b3c5d;color:white;}
 
 let dados=[];
 
+// ✅ LOGIN
 function entrar(){
   if(senhaLogin.value==="NMDIGITAL"){
     login.style.display="none";
     sistema.style.display="block";
     carregar();
-  }
+  } else alert("Senha errada");
 }
 
-// ✅ CARREGAR DO BANCO
+// ✅ CARREGAR
 async function carregar(){
-  const r = await fetch("/dados");
-  dados = await r.json();
+  const r=await fetch("/dados");
+  dados=await r.json();
   render();
 }
 
@@ -196,20 +205,88 @@ function render(){
 <td>\${d.empresa}</td>
 <td>\${d.funcao}</td>
 <td>\${d.chave}</td>
-<td style="color:\${cor}">\${status}</td>
+<td style="color:\${cor};font-weight:bold;">\${status}</td>
 <td>
-<button onclick="devolver(\${d.id})">Devolver</button>
+\${!d.devolvido ? '<button onclick="devolver('+d.id+')">Devolver</button>' : ''}
 <button onclick="excluir(\${d.id})">Excluir</button>
 </td>
 </tr>\`;
   });
 }
 
+// ✅ BACKUP
+function backup(){
+  const blob=new Blob([JSON.stringify(dados,null,2)],{type:"application/json"});
+  const link=document.createElement("a");
+  link.href=URL.createObjectURL(blob);
+  link.download="backup.json";
+  link.click();
+}
+
+// ✅ RESTAURAR
+function restaurar(event){
+  const file=event.target.files[0];
+  const reader=new FileReader();
+  reader.onload=async e=>{
+    let lista=JSON.parse(e.target.result);
+    for(let item of lista){
+      delete item.id;
+      await fetch("/dados",{
+        method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body:JSON.stringify(item)
+      });
+    }
+    alert("Restaurado!");
+    carregar();
+  };
+  reader.readAsText(file);
+}
+
+// ✅ PDF GERAL
+function pdfGeral(){
+  const { jsPDF } = window.jspdf;
+  const doc=new jsPDF();
+  let y=10;
+
+  doc.text("RELATÓRIO GERAL",10,y);
+  y+=10;
+
+  dados.forEach(d=>{
+    doc.text(\`\${d.nome} | \${d.empresa} | \${d.funcao} | \${d.chave}\`,10,y);
+    y+=6;
+  });
+
+  window.open(doc.output("bloburl"));
+}
+
+// ✅ PDF ATRASADOS
+function pdfAtrasados(){
+  const { jsPDF } = window.jspdf;
+  const doc=new jsPDF();
+  let y=10;
+  let agora=new Date();
+
+  doc.text("ATRASADOS",10,y);
+  y+=10;
+
+  dados.forEach(d=>{
+    let prazo=new Date(d.data);
+    prazo.setHours(prazo.getHours()+48);
+
+    if(!d.devolvido && agora>prazo){
+      doc.text(\`\${d.nome} | \${d.chave}\`,10,y);
+      y+=6;
+    }
+  });
+
+  window.open(doc.output("bloburl"));
+}
+
 </script>
 
 </body>
 </html>
-`);
-});
+`));
 
 app.listen(process.env.PORT || 3000);
