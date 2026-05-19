@@ -5,13 +5,13 @@ const { Pool } = pkg;
 const app = express();
 app.use(express.json());
 
-// ✅ BANCO
+// ✅ CONEXÃO
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: { rejectUnauthorized: false }
 });
 
-// ✅ CRIAR TABELA
+// ✅ CRIAR TABELA COM CRACHA
 (async ()=> {
   await pool.query(`
     CREATE TABLE IF NOT EXISTS chaves (
@@ -26,23 +26,34 @@ const pool = new Pool({
       devolvido BOOLEAN
     )
   `);
+
+  // ✅ GARANTIR QUE CRAchá exista (não quebra se já existir)
+  await pool.query(`
+    ALTER TABLE chaves 
+    ADD COLUMN IF NOT EXISTS cracha TEXT;
+  `);
 })();
 
-// ✅ APIS
+// ✅ API
 app.get("/dados", async (req,res)=>{
   const r = await pool.query("SELECT * FROM chaves ORDER BY id DESC");
   res.json(r.rows);
 });
 
 app.post("/dados", async (req,res)=>{
-  const d = req.body;
+  try {
+    const d = req.body;
 
-  await pool.query(
-    "INSERT INTO chaves (nome,empresa,funcao,cracha,chave,motivo,data,devolvido) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)",
-    [d.nome,d.empresa,d.funcao,d.cracha,d.chave,d.motivo,new Date(),false]
-  );
+    await pool.query(
+      "INSERT INTO chaves (nome,empresa,funcao,cracha,chave,motivo,data,devolvido) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)",
+      [d.nome,d.empresa,d.funcao,d.cracha,d.chave,d.motivo,new Date(),false]
+    );
 
-  res.sendStatus(200);
+    res.sendStatus(200);
+  } catch (e){
+    console.error(e);
+    res.sendStatus(500);
+  }
 });
 
 app.put("/dados/:id", async (req,res)=>{
@@ -57,7 +68,6 @@ app.delete("/dados/:id", async (req,res)=>{
 
 // ✅ FRONTEND COMPLETO
 app.get("/", (req,res)=>res.send(`
-
 <!DOCTYPE html>
 <html lang="pt-br">
 <head>
@@ -223,7 +233,7 @@ function render(){
 <td>\${d.nome}</td>
 <td>\${d.empresa}</td>
 <td>\${d.funcao}</td>
-<td>\${d.cracha}</td>
+<td>\${d.cracha||""}</td>
 <td>\${d.chave}</td>
 <td style="color:\${cor};font-weight:bold;">\${status}</td>
 <td>
@@ -259,20 +269,44 @@ function restaurar(event){
   reader.readAsText(file);
 }
 
-// PDF GERAL
+// ✅ PDF ESTILO PLANILHA
 function pdfGeral(){
-  const {jsPDF}=window.jspdf;
+  const { jsPDF } = window.jspdf;
   const doc=new jsPDF();
   let y=10;
+
+  doc.setFontSize(12);
+  doc.text("RELATÓRIO GERAL",10,y);
+  y+=10;
+
+  doc.setFontSize(8);
+
+  doc.text("Nome",10,y);
+  doc.text("Empresa",40,y);
+  doc.text("Função",80,y);
+  doc.text("Crachá",110,y);
+  doc.text("Chave",140,y);
+
+  y+=5;
+  doc.line(10,y,200,y);
+  y+=5;
 
   dados.forEach(d=>{
     let emp=new Date(d.data);
     let venc=new Date(emp.getTime()+48*60*60*1000);
 
-    doc.text(d.nome+" | "+d.empresa+" | "+d.funcao+" | "+d.chave,10,y);
-    y+=6;
-    doc.text("Emprestado: "+emp.toLocaleDateString()+" | Vence: "+venc.toLocaleDateString(),10,y);
+    doc.text(d.nome||"",10,y);
+    doc.text(d.empresa||"",40,y);
+    doc.text(d.funcao||"",80,y);
+    doc.text(d.cracha||"",110,y);
+    doc.text(d.chave||"",140,y);
+
+    y+=5;
+    doc.text("Emp: "+emp.toLocaleDateString()+" | Venc: "+venc.toLocaleDateString(),10,y);
+
     y+=8;
+
+    if(y>280){doc.addPage();y=10;}
   });
 
   window.open(doc.output("bloburl"));
@@ -280,10 +314,13 @@ function pdfGeral(){
 
 // PDF ATRASADOS
 function pdfAtrasados(){
-  const {jsPDF}=window.jspdf;
+  const { jsPDF } = window.jspdf;
   const doc=new jsPDF();
   let y=10;
   let agora=new Date();
+
+  doc.text("ATRASADOS",10,y);
+  y+=10;
 
   dados.forEach(d=>{
     let emp=new Date(d.data);
