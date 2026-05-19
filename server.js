@@ -139,7 +139,7 @@ th{background:#0b3c5d;color:white;}
 
 <header>
 
-<div class="titulo">Controle de Chaves</div>
+<div class="titulo">CONTROLE DE CHAVES</div>
 
 <div class="top-bar">
 <button onclick="pdfGeral()">Geral</button>
