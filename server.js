@@ -1,5 +1,3 @@
-// ✅ (SEU SERVER COMPLETO ORIGINAL COM AJUSTE LIMPO)
-
 import express from "express";
 import pkg from "pg";
 const { Pool } = pkg;
@@ -12,7 +10,7 @@ const pool = new Pool({
   ssl: { rejectUnauthorized: false }
 });
 
-// ✅ tabelas
+// ✅ TABELAS
 (async ()=>{
   await pool.query(`
     CREATE TABLE IF NOT EXISTS chaves (
@@ -38,15 +36,15 @@ const pool = new Pool({
   `);
 })();
 
-// ✅ USUARIOS
+// APIs
 app.get("/usuarios", async (req,res)=>{
   const r = await pool.query("SELECT * FROM usuarios");
   res.json(r.rows);
 });
 
 app.post("/usuarios", async (req,res)=>{
-  const {nome,senha}=req.body;
-  await pool.query("INSERT INTO usuarios(nome,senha) VALUES ($1,$2)",[nome,senha]);
+  const {nome,senha} = req.body;
+  await pool.query("INSERT INTO usuarios (nome,senha) VALUES ($1,$2)",[nome,senha]);
   res.sendStatus(200);
 });
 
@@ -55,14 +53,13 @@ app.delete("/usuarios/:id", async (req,res)=>{
   res.sendStatus(200);
 });
 
-// ✅ CHAVES
 app.get("/dados", async (req,res)=>{
   const r = await pool.query("SELECT * FROM chaves ORDER BY id DESC");
   res.json(r.rows);
 });
 
 app.post("/dados", async (req,res)=>{
-  const d=req.body;
+  const d = req.body;
 
   await pool.query(
     "INSERT INTO chaves (nome,empresa,funcao,cracha,chave,motivo,usuario,data,devolvido) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)",
@@ -82,113 +79,114 @@ app.delete("/dados/:id", async (req,res)=>{
   res.sendStatus(200);
 });
 
-
-// ✅ FRONTEND — SEU ORIGINAL + AJUSTE
+// FRONTEND
 app.get("/", (req,res)=>res.send(`
 <!DOCTYPE html>
-<html lang="pt-br">
+<html>
 <head>
 <meta charset="UTF-8">
-<title>NM SOLUCION</title>
+<title>Controle de Chaves</title>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 
 <style>
-body {font-family:Arial;background:linear-gradient(135deg,#0b3c5d,#1f6fa5);margin:0;}
-#login{width:300px;margin:120px auto;background:white;padding:20px;text-align:center;}
-header{background:#0b3c5d;color:white;padding:10px;text-align:center;}
-.container{padding:20px;background:#eef2f7;}
-.card{background:white;padding:15px;border-radius:8px;margin-bottom:15px;}
-.form-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;}
-input,select,button{padding:8px;width:100%;}
-button{background:#0b3c5d;color:white;border:none;}
-button:hover{background:#155a87;}
-table{width:100%;border-collapse:collapse;}
-th,td{border:1px solid #ccc;padding:8px;}
-th{background:#0b3c5d;color:white;}
+body{font-family:Arial;margin:0;background:#eef2f7}
+header{background:#0b3c5d;color:white;padding:10px;text-align:center}
+
+/* ✅ TOPO FIXO */
+.topo{
+  display:grid;
+  grid-template-columns: repeat(auto-fit,minmax(120px,1fr));
+  gap:5px;
+  padding:10px;
+  background:white;
+}
+
+/* CAMPOS PEQUENOS */
+input,select,button{
+  padding:5px;
+  font-size:12px;
+}
+
+button{
+  background:#0b3c5d;
+  color:white;
+  border:none;
+  cursor:pointer;
+}
+
+table{width:100%;border-collapse:collapse;margin-top:10px}
+th,td{border:1px solid #ccc;padding:6px;font-size:12px}
+
+.atrasado{
+  background:#ffcccc;
+  animation:piscando 1s infinite;
+}
+
+@keyframes piscando{
+  0%{background:#ffcccc;}
+  100%{background:white;}
+}
+
 </style>
 </head>
 
 <body>
 
-<div id="login">
+<div id="login" style="text-align:center;padding:50px">
 <h2>NM SOLUCION</h2>
-<input type="password" id="senhaLogin">
+<input type="password" id="senha">
 <button onclick="entrar()">Entrar</button>
 </div>
 
-<div id="sistema" style="display:none;">
-<header><h2>Controle de Chaves</h2></header>
+<div id="sistema" style="display:none">
 
-<div class="container">
+<header><h3>Controle de Chaves</h3></header>
 
-<!-- ✅ BOTÃO NOVO -->
-<div class="card">
-<button onclick="window.open('/usuariosPage')">
-👥 Gerenciar Recepcionistas
-</button>
-</div>
-
-<div class="card">
-<div class="form-grid">
+<!-- ✅ TOPO COMPACTO -->
+<div class="topo">
 
 <input id="nome" placeholder="Nome">
 <input id="empresa" placeholder="Empresa">
 <input id="funcao" placeholder="Função">
-<input id="cracha" placeholder="ID do Crachá">
-<input id="chave" placeholder="Chave / Apartamento">
-
-<select id="motivo">
-<option value="">Motivo</option>
-<option>Perda</option>
-<option>Serviço</option>
-</select>
-
-<!-- ✅ NOVO CAMPO SEM QUEBRAR GRID -->
+<input id="cracha" placeholder="Crachá">
+<input id="chave" placeholder="Chave">
+<select id="motivo"><option>Perda</option><option>Serviço</option></select>
 <select id="usuarioUso"></select>
 
-</div>
-<br>
 <button onclick="emprestar()">Emprestar</button>
+
+<input id="busca" placeholder="Buscar..." oninput="filtrar()">
+
+<button onclick="backup()">Backup</button>
+<button onclick="pdfGeral()">PDF</button>
+<button onclick="window.open('/usuariosPage')">Usuários</button>
+
 </div>
 
-<div class="card">
-<button onclick="pdfAtrasados()">PDF Atrasados</button>
-<button onclick="pdfGeral()">PDF Geral</button>
-</div>
-
-<div class="card">
-<button onclick="backup()">💾 Fazer Backup</button>
-<input type="file" onchange="restaurar(event)">
-</div>
-
-<div class="card">
 <table>
 <thead>
 <tr>
 <th>Nome</th>
-<th>Empresa</th>
-<th>Função</th>
 <th>Crachá</th>
 <th>Chave</th>
 <th>Usuário</th>
 <th>Status</th>
-<th>Ações</th>
+<th>Ação</th>
 </tr>
 </thead>
 <tbody id="tabela"></tbody>
 </table>
-</div>
 
-</div>
 </div>
 
 <script>
 
 let dados=[];
 
+// login
 function entrar(){
-  if(senhaLogin.value==="NMDIGITAL"){
+  if(senha.value==="NMDIGITAL"){
     login.style.display="none";
     sistema.style.display="block";
     carregar();
@@ -196,9 +194,10 @@ function entrar(){
   }
 }
 
+// usuarios
 async function carregarUsuarios(){
-  const r=await fetch("/usuarios");
-  const usuarios=await r.json();
+  const r = await fetch("/usuarios");
+  const usuarios = await r.json();
 
   usuarioUso.innerHTML="";
   usuarios.forEach(u=>{
@@ -206,18 +205,15 @@ async function carregarUsuarios(){
   });
 }
 
-// resto (SEU ORIGINAL)
+// carregar
 async function carregar(){
-  const r=await fetch("/dados");
-  dados=await r.json();
+  const r = await fetch("/dados");
+  dados = await r.json();
   render();
 }
 
+// emprestar
 async function emprestar(){
-  if(!nome.value||!empresa.value||!funcao.value||!cracha.value||!chave.value||!motivo.value){
-    alert("Preencha tudo"); return;
-  }
-
   await fetch("/dados",{
     method:"POST",
     headers:{"Content-Type":"application/json"},
@@ -235,26 +231,33 @@ async function emprestar(){
   carregar();
 }
 
-function render(){
+// render
+function render(lista=dados){
   tabela.innerHTML="";
-  dados.forEach(d=>{
+  let agora=new Date();
+
+  lista.forEach(d=>{
+    let prazo=new Date(d.data);
+    prazo.setHours(prazo.getHours()+48);
+
+    let atrasado=!d.devolvido && agora>prazo;
+
     tabela.innerHTML+=\`
-<tr>
+<tr class="\${atrasado?'atrasado':''}">
 <td>\${d.nome}</td>
-<td>\${d.empresa}</td>
-<td>\${d.funcao}</td>
 <td>\${d.cracha}</td>
 <td>\${d.chave}</td>
 <td>\${d.usuario}</td>
-<td>\${d.devolvido?'OK':'ABERTO'}</td>
+<td>\${d.devolvido?'DEVOLVIDO':(atrasado?'VENCIDO':'OK')}</td>
 <td>
-<button onclick="devolver(\${d.id})">Devolver</button>
-<button onclick="excluir(\${d.id})">Excluir</button>
+<button onclick="devolver(\${d.id})">✔</button>
+<button onclick="excluir(\${d.id})">✖</button>
 </td>
 </tr>\`;
   });
 }
 
+// ações
 async function devolver(id){
   await fetch("/dados/"+id,{method:"PUT"});
   carregar();
@@ -267,6 +270,13 @@ async function excluir(id){
   }
 }
 
+// busca
+function filtrar(){
+  let t=busca.value.toLowerCase();
+  render(dados.filter(d => d.nome.toLowerCase().includes(t)));
+}
+
+// backup
 function backup(){
   const blob=new Blob([JSON.stringify(dados)],{type:"application/json"});
   const link=document.createElement("a");
@@ -275,32 +285,32 @@ function backup(){
   link.click();
 }
 
-function restaurar(event){
-  const file=event.target.files[0];
-  const reader=new FileReader();
-  reader.onload=async e=>{
-    let lista=JSON.parse(e.target.result);
-    for(let i of lista){
-      await fetch("/dados",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(i)});
-    }
-    carregar();
-  };
-  reader.readAsText(file);
+// PDF
+function pdfGeral(){
+  const {jsPDF}=window.jspdf;
+  let doc=new jsPDF();
+  let y=10;
+
+  dados.forEach(d=>{
+    doc.text(\`\${d.nome} - \${d.chave}\`,10,y);
+    y+=6;
+  });
+
+  doc.save("relatorio.pdf");
 }
 
 </script>
+
 </body>
 </html>
 `));
 
-
-// ✅ PAGE USUARIOS SEPARADA
+// pagina usuarios
 app.get("/usuariosPage",(req,res)=>res.send(`
 <!DOCTYPE html>
 <html>
 <body>
-
-<h2>Recepcionistas</h2>
+<h2>Usuários</h2>
 
 <input id="nome">
 <input id="senha" type="password">
@@ -316,14 +326,15 @@ async function carregar(){
 
   lista.innerHTML="";
   data.forEach(u=>{
-    lista.innerHTML += u.nome + " <button onclick=\\"excluir("+u.id+")\\">Excluir</button><br>";
+    lista.innerHTML+=u.nome+" <button onclick='excluir("+u.id+")'>Excluir</button><br>";
   });
 }
 
 async function criar(){
   await fetch("/usuarios",{method:"POST",
-  headers:{"Content-Type":"application/json"},
-  body:JSON.stringify({nome:nome.value,senha:senha.value})});
+    headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({nome:nome.value,senha:senha.value})
+  });
   carregar();
 }
 
@@ -334,9 +345,9 @@ async function excluir(id){
 
 carregar();
 </script>
-
 </body>
 </html>
 `));
 
 app.listen(process.env.PORT||3000);
+``
