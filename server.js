@@ -11,8 +11,8 @@ const pool = new Pool({
   ssl: { rejectUnauthorized: false }
 });
 
-// ✅ CRIAR TABELA
-(async () => {
+// ✅ CRIAR TABELA COM CRACHA
+(async ()=>{
   await pool.query(`
     CREATE TABLE IF NOT EXISTS chaves (
       id SERIAL PRIMARY KEY,
@@ -81,58 +81,32 @@ body {font-family:Arial;background:linear-gradient(135deg,#0b3c5d,#1f6fa5);margi
 header{background:#0b3c5d;color:white;padding:10px;text-align:center;}
 .container{padding:20px;background:#eef2f7;}
 .card{background:white;padding:15px;border-radius:8px;margin-bottom:15px;}
-
-.form-grid{
-  display:grid;
-  grid-template-columns:repeat(auto-fit,minmax(180px,1fr));
-  gap:10px;
-}
-
+.form-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;}
 input,select,button{padding:8px;width:100%;}
+button{background:#0b3c5d;color:white;border:none;}
+button:hover{background:#155a87;}
+table{width:100%;border-collapse:collapse;}
+th,td{border:1px solid #ccc;padding:8px;}
+th{background:#0b3c5d;color:white;}
 
-button{
-  background:#0b3c5d;
-  color:white;
-  border:none;
-}
-
-/* 🔥 NOVO VISUAL DOS BOTÕES */
+/* ✅ AJUSTE APENAS DOS BOTÕES */
 .btn-dev, .btn-exc{
-  padding:5px 8px;
-  margin:4px; /* ✅ espaçamento */
-  border-radius:5px;
+  padding:6px 10px;
+  margin-right:8px; /* espaço entre eles */
+  border-radius:4px;
   cursor:pointer;
   transition:0.2s;
-  display:inline-block;
-  width:auto;
 }
 
-/* devolver */
-.btn-dev{
-  background:#0b3c5d;
-}
+/* hover devolver */
 .btn-dev:hover{
-  background:#1f6fa5; /* azul claro */
+  background:#1f6fa5;
 }
 
-/* excluir */
-.btn-exc{
-  background:#0b3c5d;
-}
+/* hover excluir */
 .btn-exc:hover{
-  background:#c0392b; /* vermelho destaque */
+  background:#c0392b;
 }
-
-/* container dos botões */
-.acoes{
-  display:flex;
-  gap:6px;
-  justify-content:center;
-}
-
-table{width:100%;border-collapse:collapse;}
-th,td{border:1px solid #ccc;padding:8px;text-align:center;}
-th{background:#0b3c5d;color:white;}
 
 </style>
 </head>
@@ -241,6 +215,7 @@ async function emprestar(){
 
   nome.value=empresa.value=funcao.value=cracha.value=chave.value="";
   motivo.value="";
+
   carregar();
 }
 
@@ -258,7 +233,7 @@ async function excluir(id){
   }
 }
 
-// ✅ RENDER COM BOTÕES SEPARADOS
+// ✅ RENDER (SÓ ALTERADO AQUI)
 function render(){
   tabela.innerHTML="";
   let agora=new Date();
@@ -280,17 +255,10 @@ function render(){
 <td>\${d.cracha||""}</td>
 <td>\${d.chave}</td>
 <td style="color:\${cor};font-weight:bold;">\${status}</td>
-
 <td>
-<div class="acoes">
-
 \${!d.devolvido ? '<button class="btn-dev" onclick="devolver('+d.id+')">Devolver</button>' : ''}
-
 <button class="btn-exc" onclick="excluir(\${d.id})">Excluir</button>
-
-</div>
 </td>
-
 </tr>\`;
   });
 }
@@ -301,4 +269,3 @@ function render(){
 `));
 
 app.listen(process.env.PORT||3000);
-``
