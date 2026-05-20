@@ -118,12 +118,10 @@ button{
 .emp{text-align:center;margin-top:10px;}
 
 table{width:100%;border-collapse:collapse;margin-top:10px;}
-
 th,td{border:1px solid #ccc;padding:6px;font-size:12px;}
-
 th{background:#0b3c5d;color:white;}
 
-/* ✅ BOTÕES */
+/* BOTÕES */
 .btn-dev,.btn-exc{
   margin-right:8px;
   padding:6px 10px;
@@ -281,11 +279,13 @@ async function excluir(id){
   }
 }
 
+// BUSCA
 function filtrar(){
   let t=busca.value.toLowerCase();
   render(dados.filter(d=>d.nome.toLowerCase().includes(t)));
 }
 
+// BACKUP
 function backup(){
   const blob=new Blob([JSON.stringify(dados,null,2)]);
   const link=document.createElement("a");
@@ -294,6 +294,7 @@ function backup(){
   link.click();
 }
 
+// RESTAURAR
 function restaurar(event){
   let senha = prompt("Senha:");
   if(senha!=="2805"){alert("Senha incorreta");return;}
@@ -316,7 +317,7 @@ function restaurar(event){
   reader.readAsText(file);
 }
 
-// ✅ PDF GERAL ESTILO PLANILHA
+// ✅ PDF GERAL CORRIGIDO
 function pdfGeral(){
   const { jsPDF } = window.jspdf;
   const doc=new jsPDF();
@@ -344,11 +345,14 @@ function pdfGeral(){
     let emp=new Date(d.data);
     let venc=new Date(emp.getTime()+48*60*60*1000);
 
+    // ✅ CORREÇÃO DA CHAVE (não bagunça layout)
+    let chave = (d.chave||"").split("/")[0];
+
     doc.text((d.nome||"").substring(0,25),10,y);
     doc.text((d.empresa||"").substring(0,20),50,y);
     doc.text((d.funcao||"").substring(0,18),90,y);
     doc.text(d.cracha||"",120,y);
-    doc.text(d.chave||"",145,y);
+    doc.text(chave.substring(0,10),145,y);
     doc.text(emp.toLocaleDateString(),165,y);
     doc.text(venc.toLocaleDateString(),185,y);
 
@@ -362,25 +366,21 @@ function pdfGeral(){
   window.open(doc.output("bloburl"));
 }
 
-// ✅ PDF ATRASADOS
 function pdfAtrasados(){
   const { jsPDF } = window.jspdf;
   const doc=new jsPDF();
-
   let y=10;
   let agora=new Date();
 
   doc.text("ATRASADOS",10,y); y+=8;
-
-  doc.setFontSize(6);
 
   dados.forEach(d=>{
     let emp=new Date(d.data);
     let venc=new Date(emp.getTime()+48*60*60*1000);
 
     if(!d.devolvido && agora>venc){
-      doc.text(d.nome+" | "+d.chave+" | "+emp.toLocaleDateString()+" | "+venc.toLocaleDateString(),10,y);
-      y+=5;
+      doc.text(d.nome+" | "+d.chave,10,y);
+      y+=6;
     }
   });
 
@@ -393,4 +393,3 @@ function pdfAtrasados(){
 `));
 
 app.listen(process.env.PORT||3000);
-``
