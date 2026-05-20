@@ -10,7 +10,7 @@ const pool = new Pool({
   ssl: { rejectUnauthorized: false }
 });
 
-// ✅ BANCO
+// BANCO
 (async ()=>{
   await pool.query(`
     CREATE TABLE IF NOT EXISTS chaves (
@@ -27,7 +27,7 @@ const pool = new Pool({
   `);
 })();
 
-// ✅ API
+// API
 app.get("/dados", async (req,res)=>{
   const r = await pool.query("SELECT * FROM chaves ORDER BY id DESC");
   res.json(r.rows);
@@ -54,7 +54,7 @@ app.delete("/dados/:id", async (req,res)=>{
   res.sendStatus(200);
 });
 
-// ✅ FRONTEND
+// FRONT
 app.get("/", (req,res)=>res.send(`
 <!DOCTYPE html>
 <html>
@@ -123,21 +123,16 @@ th,td{border:1px solid #ccc;padding:6px;font-size:12px;}
 
 th{background:#0b3c5d;color:white;}
 
-/* ✅ AJUSTE SOMENTE NOS BOTÕES */
-.btn-dev, .btn-exc{
+/* ✅ BOTÕES */
+.btn-dev,.btn-exc{
   margin-right:8px;
   padding:6px 10px;
   border-radius:4px;
   transition:0.2s;
 }
 
-.btn-dev:hover{
-  background:#1f6fa5;
-}
-
-.btn-exc:hover{
-  background:#c0392b;
-}
+.btn-dev:hover{background:#1f6fa5;}
+.btn-exc:hover{background:#c0392b;}
 
 </style>
 </head>
@@ -244,7 +239,6 @@ async function emprestar(){
   carregar();
 }
 
-// ✅ RENDER (APENAS BOTÕES ALTERADOS)
 function render(lista=dados){
   tabela.innerHTML="";
   let agora=new Date();
@@ -287,13 +281,11 @@ async function excluir(id){
   }
 }
 
-// busca
 function filtrar(){
   let t=busca.value.toLowerCase();
   render(dados.filter(d=>d.nome.toLowerCase().includes(t)));
 }
 
-// backup
 function backup(){
   const blob=new Blob([JSON.stringify(dados,null,2)]);
   const link=document.createElement("a");
@@ -302,13 +294,9 @@ function backup(){
   link.click();
 }
 
-// restaurar
 function restaurar(event){
   let senha = prompt("Senha:");
-  if(senha!=="2805"){
-    alert("Senha incorreta");
-    return;
-  }
+  if(senha!=="2805"){alert("Senha incorreta");return;}
 
   const file=event.target.files[0];
   const reader=new FileReader();
@@ -328,35 +316,71 @@ function restaurar(event){
   reader.readAsText(file);
 }
 
-// PDF
+// ✅ PDF GERAL ESTILO PLANILHA
 function pdfGeral(){
   const { jsPDF } = window.jspdf;
   const doc=new jsPDF();
+
   let y=10;
 
-  doc.text("RELATÓRIO GERAL",10,y);
-  y+=10;
+  doc.setFontSize(10);
+  doc.text("RELATÓRIO GERAL",10,y); y+=8;
+
+  doc.setFontSize(6);
+
+  doc.text("Nome",10,y);
+  doc.text("Empresa",50,y);
+  doc.text("Função",90,y);
+  doc.text("Crachá",120,y);
+  doc.text("Chave",145,y);
+  doc.text("Entrega",165,y);
+  doc.text("Venc",185,y);
+
+  y+=3;
+  doc.line(10,y,200,y);
+  y+=4;
 
   dados.forEach(d=>{
-    doc.text(d.nome+" | "+d.chave,10,y);
-    y+=6;
+    let emp=new Date(d.data);
+    let venc=new Date(emp.getTime()+48*60*60*1000);
+
+    doc.text((d.nome||"").substring(0,25),10,y);
+    doc.text((d.empresa||"").substring(0,20),50,y);
+    doc.text((d.funcao||"").substring(0,18),90,y);
+    doc.text(d.cracha||"",120,y);
+    doc.text(d.chave||"",145,y);
+    doc.text(emp.toLocaleDateString(),165,y);
+    doc.text(venc.toLocaleDateString(),185,y);
+
+    y+=4;
+    doc.line(10,y,200,y);
+    y+=3;
+
+    if(y>280){doc.addPage();y=10;}
   });
 
   window.open(doc.output("bloburl"));
 }
 
+// ✅ PDF ATRASADOS
 function pdfAtrasados(){
   const { jsPDF } = window.jspdf;
   const doc=new jsPDF();
+
   let y=10;
   let agora=new Date();
 
+  doc.text("ATRASADOS",10,y); y+=8;
+
+  doc.setFontSize(6);
+
   dados.forEach(d=>{
-    let venc=new Date(new Date(d.data).getTime()+48*60*60*1000);
+    let emp=new Date(d.data);
+    let venc=new Date(emp.getTime()+48*60*60*1000);
 
     if(!d.devolvido && agora>venc){
-      doc.text(d.nome+" | "+d.chave,10,y);
-      y+=6;
+      doc.text(d.nome+" | "+d.chave+" | "+emp.toLocaleDateString()+" | "+venc.toLocaleDateString(),10,y);
+      y+=5;
     }
   });
 
@@ -369,3 +393,4 @@ function pdfAtrasados(){
 `));
 
 app.listen(process.env.PORT||3000);
+``
