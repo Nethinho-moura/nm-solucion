@@ -1,99 +1,86 @@
-// PDF GERAL (MELHORADO COM TABELA)
-function pdfGeral(){
-  const { jsPDF } = window.jspdf;
-  const doc=new jsPDF();
+const express = require("express");
+const { Pool } = require("pg");
 
-  let y=10;
+const app = express();
+app.use(express.json());
 
-  doc.setFontSize(12);
-  doc.text("RELATÓRIO GERAL",10,y);
-  y+=8;
+// ✅ BANCO
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  ssl: { rejectUnauthorized: false }
+});
 
-  doc.setFontSize(7);
+// ✅ CRIA TABELA
+(async () => {
+  try {
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS chaves (
+        id SERIAL PRIMARY KEY,
+        nome TEXT,
+        empresa TEXT,
+        funcao TEXT,
+        cracha TEXT,
+        chave TEXT,
+        motivo TEXT,
+        data TIMESTAMP,
+        devolvido BOOLEAN
+      )
+    `);
+    console.log("✅ Banco conectado");
+  } catch (err) {
+    console.error("❌ Erro banco:", err);
+  }
+})();
 
-  // Cabeçalho
-  doc.rect(10,y,190,8);
-  doc.text("Nome",12,y+5);
-  doc.text("Empresa",55,y+5);
-  doc.text("Função",90,y+5);
-  doc.text("Chave",140,y+5);
+// ✅ API
+app.get("/dados", async (req, res) => {
+  const r = await pool.query("SELECT * FROM chaves ORDER BY id DESC");
+  res.json(r.rows);
+});
 
-  y+=8;
+app.post("/dados", async (req, res) => {
+  const d = req.body;
 
-  dados.forEach(d=>{
-    let emp=new Date(d.data);
-    let venc=new Date(emp.getTime()+48*60*60*1000);
+  await pool.query(
+    "INSERT INTO chaves (nome,empresa,funcao,cracha,chave,motivo,data,devolvido) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)",
+    [d.nome, d.empresa, d.funcao, d.cracha, d.chave, d.motivo, new Date(), false]
+  );
 
-    // Linha principal
-    doc.rect(10,y,190,10);
+  res.sendStatus(200);
+});
 
-    doc.text(d.nome,12,y+4);
-    doc.text(d.empresa,55,y+4);
-    doc.text(d.funcao,90,y+4);
-    doc.text(d.chave,140,y+4);
+app.put("/dados/:id", async (req, res) => {
+  await pool.query(
+    "UPDATE chaves SET devolvido=true WHERE id=$1",
+    [req.params.id]
+  );
+  res.sendStatus(200);
+});
 
-    // Linha de datas
-    doc.text(
-      "Emp: "+emp.toLocaleDateString("pt-BR")+
-      " | Venc: "+venc.toLocaleDateString("pt-BR"),
-      12,y+8
-    );
+app.delete("/dados/:id", async (req, res) => {
+  await pool.query(
+    "DELETE FROM chaves WHERE id=$1",
+    [req.params.id]
+  );
+  res.sendStatus(200);
+});
 
-    y+=12;
+// ✅ FRONT
+app.get("/", (req, res) => {
+  res.send(`
+  <html>
+  <body style="font-family:Arial;text-align:center">
+    <h2>✅ SISTEMA RODANDO</h2>
+    <p>API ativa</p>
+    <a href="/dados">Ver Dados</a>
+  </body>
+  </html>
+  `);
+});
 
-    // quebra de página automática
-    if(y>270){
-      doc.addPage();
-      y=10;
-    }
-  });
+// ✅ SERVIDOR
+const PORT = process.env.PORT || 3000;
 
-  window.open(doc.output("bloburl"));
-}
-
-
-// ATRASADOS (COM DATAS CORRIGIDO)
-function pdfAtrasados(){
-  const { jsPDF } = window.jspdf;
-  const doc=new jsPDF();
-
-  let y=10;
-  let agora=new Date();
-
-  doc.setFontSize(12);
-  doc.text("RELATÓRIO DE ATRASADOS",10,y);
-  y+=10;
-
-  doc.setFontSize(8);
-
-  dados.forEach(d=>{
-    let emp=new Date(d.data);
-    let venc=new Date(emp.getTime()+48*60*60*1000);
-
-    if(!d.devolvido && agora>venc){
-
-      doc.text("Nome: "+d.nome,10,y); y+=5;
-      doc.text("Chave: "+d.chave,10,y); y+=5;
-      doc.text("Empresa: "+d.empresa,10,y); y+=5;
-
-      // ✅ AGORA COM DATAS
-      doc.text(
-        "Emp: "+emp.toLocaleDateString("pt-BR")+
-        " | Venc: "+venc.toLocaleDateString("pt-BR"),
-        10,y
-      );
-
-      y+=8;
-
-      doc.line(10,y,200,y);
-      y+=5;
-
-      if(y>270){
-        doc.addPage();
-        y=10;
-      }
-    }
-  });
-
-  window.open(doc.output("bloburl"));
-}
+app.listen(PORT, () => {
+  console.log("🔥 Rodando na porta " + PORT);
+});
