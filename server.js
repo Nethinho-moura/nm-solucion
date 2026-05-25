@@ -1,86 +1,166 @@
-const express = require("express");
-const { Pool } = require("pg");
+// PDF GERAL MELHORADO
+function pdfGeral(){
 
-const app = express();
-app.use(express.json());
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF();
 
-// ✅ BANCO
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: { rejectUnauthorized: false }
-});
+  let y = 15;
 
-// ✅ CRIA TABELA
-(async () => {
-  try {
-    await pool.query(`
-      CREATE TABLE IF NOT EXISTS chaves (
-        id SERIAL PRIMARY KEY,
-        nome TEXT,
-        empresa TEXT,
-        funcao TEXT,
-        cracha TEXT,
-        chave TEXT,
-        motivo TEXT,
-        data TIMESTAMP,
-        devolvido BOOLEAN
-      )
-    `);
-    console.log("✅ Banco conectado");
-  } catch (err) {
-    console.error("❌ Erro banco:", err);
-  }
-})();
+  doc.setFontSize(16);
+  doc.setFont(undefined,"bold");
+  doc.text("RELATÓRIO GERAL", 10, y);
 
-// ✅ API
-app.get("/dados", async (req, res) => {
-  const r = await pool.query("SELECT * FROM chaves ORDER BY id DESC");
-  res.json(r.rows);
-});
+  y += 12;
 
-app.post("/dados", async (req, res) => {
-  const d = req.body;
+  dados.forEach((d,index)=>{
 
-  await pool.query(
-    "INSERT INTO chaves (nome,empresa,funcao,cracha,chave,motivo,data,devolvido) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)",
-    [d.nome, d.empresa, d.funcao, d.cracha, d.chave, d.motivo, new Date(), false]
-  );
+    let emp = new Date(d.data);
+    let venc = new Date(emp.getTime()+48*60*60*1000);
 
-  res.sendStatus(200);
-});
+    // caixa externa
+    doc.rect(10,y,190,28);
 
-app.put("/dados/:id", async (req, res) => {
-  await pool.query(
-    "UPDATE chaves SET devolvido=true WHERE id=$1",
-    [req.params.id]
-  );
-  res.sendStatus(200);
-});
+    // TITULOS
+    doc.setFontSize(8);
+    doc.setFont(undefined,"bold");
 
-app.delete("/dados/:id", async (req, res) => {
-  await pool.query(
-    "DELETE FROM chaves WHERE id=$1",
-    [req.params.id]
-  );
-  res.sendStatus(200);
-});
+    doc.text("NOME",12,y+5);
+    doc.text("EMPRESA",60,y+5);
+    doc.text("FUNÇÃO",100,y+5);
+    doc.text("CHAVE",155,y+5);
 
-// ✅ FRONT
-app.get("/", (req, res) => {
-  res.send(`
-  <html>
-  <body style="font-family:Arial;text-align:center">
-    <h2>✅ SISTEMA RODANDO</h2>
-    <p>API ativa</p>
-    <a href="/dados">Ver Dados</a>
-  </body>
-  </html>
-  `);
-});
+    // LINHA TITULOS
+    doc.line(10,y+7,200,y+7);
 
-// ✅ SERVIDOR
-const PORT = process.env.PORT || 3000;
+    // DADOS
+    doc.setFont(undefined,"normal");
+    doc.setFontSize(10);
 
-app.listen(PORT, () => {
-  console.log("🔥 Rodando na porta " + PORT);
-});
+    doc.text(String(d.nome || ""),12,y+14);
+
+    doc.text(String(d.empresa || ""),60,y+14);
+
+    // função com quebra automática
+    const funcao = doc.splitTextToSize(
+      String(d.funcao || ""),
+      45
+    );
+    doc.text(funcao,100,y+14);
+
+    // chave com quebra
+    const chave = doc.splitTextToSize(
+      String(d.chave || ""),
+      38
+    );
+    doc.text(chave,155,y+14);
+
+    // linha inferior
+    doc.setFontSize(8);
+
+    doc.text(
+      "Emp: "+emp.toLocaleDateString()+
+      "   |   Venc: "+venc.toLocaleDateString(),
+      12,
+      y+24
+    );
+
+    y += 35;
+
+    // nova página
+    if(y > 260){
+      doc.addPage();
+      y = 15;
+    }
+
+  });
+
+  window.open(doc.output("bloburl"));
+}
+
+
+
+
+
+
+// PDF ATRASADOS MELHORADO
+function pdfAtrasados(){
+
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF();
+
+  let y = 15;
+  let agora = new Date();
+
+  doc.setFontSize(16);
+  doc.setFont(undefined,"bold");
+  doc.text("RELATÓRIO DE ATRASADOS", 10, y);
+
+  y += 12;
+
+  dados.forEach((d)=>{
+
+    let emp = new Date(d.data);
+    let venc = new Date(emp.getTime()+48*60*60*1000);
+
+    // apenas atrasados
+    if(!d.devolvido && agora > venc){
+
+      // caixa
+      doc.rect(10,y,190,28);
+
+      // TITULOS
+      doc.setFontSize(8);
+      doc.setFont(undefined,"bold");
+
+      doc.text("NOME",12,y+5);
+      doc.text("EMPRESA",60,y+5);
+      doc.text("FUNÇÃO",100,y+5);
+      doc.text("CHAVE",155,y+5);
+
+      // linha
+      doc.line(10,y+7,200,y+7);
+
+      // DADOS
+      doc.setFont(undefined,"normal");
+      doc.setFontSize(10);
+
+      doc.text(String(d.nome || ""),12,y+14);
+
+      doc.text(String(d.empresa || ""),60,y+14);
+
+      const funcao = doc.splitTextToSize(
+        String(d.funcao || ""),
+        45
+      );
+      doc.text(funcao,100,y+14);
+
+      const chave = doc.splitTextToSize(
+        String(d.chave || ""),
+        38
+      );
+      doc.text(chave,155,y+14);
+
+      // DATAS
+      doc.setFontSize(8);
+
+      doc.text(
+        "Emp: "+emp.toLocaleDateString()+
+        "   |   Venc: "+venc.toLocaleDateString(),
+        12,
+        y+24
+      );
+
+      y += 35;
+
+      // quebra página
+      if(y > 260){
+        doc.addPage();
+        y = 15;
+      }
+
+    }
+
+  });
+
+  window.open(doc.output("bloburl"));
+}
