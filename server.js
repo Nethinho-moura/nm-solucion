@@ -736,6 +736,7 @@ function pdfGeral(){
       doc.addPage();
       y = 15;
     }
+    ``
 
     // ✅ ZEBRA (linha alternada)
     if (zebra) {
