@@ -673,119 +673,112 @@ function restaurar(event){
 
 // PDF GERAL
 function pdfGeral(){
-
   const { jsPDF } = window.jspdf;
-
   const doc = new jsPDF();
 
   let y = 15;
 
-  doc.setFontSize(16);
+  // ✅ TÍTULO
+  doc.setFontSize(14);
+  doc.setFont("helvetica", "bold");
+  doc.text("RELATÓRIO GERAL DE CHAVES", 105, y, { align: "center" });
 
-  doc.setFont(undefined,"bold");
+  y += 10;
 
-  doc.text("RELATÓRIO GERAL",10,y);
+  // ✅ CONFIG COLUNAS
+  const col = {
+    nome: { x: 10, w: 40 },
+    empresa: { x: 50, w: 45 },
+    funcao: { x: 95, w: 40 },
+    chave: { x: 165, w: 35 }
+  };
 
-  y += 12;
+  // ✅ CABEÇALHO
+  doc.setFontSize(8);
+  doc.setFont("helvetica", "bold");
+  doc.setFillColor(11, 60, 93);
+  doc.setTextColor(255);
 
-  dados.forEach((d)=>{
+  doc.rect(10, y-4, 190, 6, "F");
+
+  doc.text("Nome", col.nome.x, y);
+  doc.text("Empresa", col.empresa.x, y);
+  doc.text("Função", col.funcao.x, y);
+  doc.text("Chave", col.chave.x, y);
+
+  y += 6;
+
+  doc.setFont("helvetica", "normal");
+  doc.setTextColor(0);
+
+  let zebra = false;
+
+  dados.forEach((d, i) => {
 
     let emp = new Date(d.data);
+    let venc = new Date(emp.getTime() + 48*60*60*1000);
 
-    let venc = new Date(
-      emp.getTime()+48*60*60*1000
-    );
+    // ✅ QUEBRA DE TEXTO
+    let nome = doc.splitTextToSize(d.nome || "", col.nome.w);
+    let empresa = doc.splitTextToSize(d.empresa || "", col.empresa.w);
+    let funcao = doc.splitTextToSize(d.funcao || "", col.funcao.w);
+    let chave = doc.splitTextToSize(d.chave || "", col.chave.w);
 
-    // CAIXA
-    doc.rect(10,y,190,30);
+    let altura = Math.max(
+      nome.length,
+      empresa.length,
+      funcao.length,
+      chave.length
+    ) * 4 + 3;
 
-    // TITULOS
-    doc.setFontSize(8);
-
-    doc.setFont(undefined,"bold");
-
-    doc.text("NOME",12,y+5);
-
-    doc.text("EMPRESA",55,y+5);
-
-    doc.text("FUNÇÃO",95,y+5);
-
-    doc.text("CHAVE",155,y+5);
-
-    // LINHA
-    doc.line(10,y+7,200,y+7);
-
-    // DADOS
-    doc.setFont(undefined,"normal");
-
-    doc.setFontSize(10);
-
-    doc.text(
-      doc.splitTextToSize(
-        String(d.nome || ""),
-        38
-      ),
-      12,
-      y+14
-    );
-
-    doc.text(
-      doc.splitTextToSize(
-        String(d.empresa || ""),
-        30
-      ),
-      55,
-      y+14
-    );
-
-    doc.text(
-      doc.splitTextToSize(
-        String(d.funcao || ""),
-        45
-      ),
-      95,
-      y+14
-    );
-
-    doc.text(
-      doc.splitTextToSize(
-        String(d.chave || ""),
-        35
-      ),
-      155,
-      y+14
-    );
-
-    doc.setFontSize(8);
-
-    doc.text(
-
-      "Emp: " +
-      emp.toLocaleDateString() +
-      "   |   Venc: " +
-      venc.toLocaleDateString(),
-
-      12,
-      y+26
-
-    );
-
-    y += 36;
-
-    // NOVA PAGINA
-    if(y > 250){
-
+    // ✅ NOVA PÁGINA
+    if (y + altura > 280) {
       doc.addPage();
-
       y = 15;
-
     }
 
+    // ✅ ZEBRA (linha alternada)
+    if (zebra) {
+      doc.setFillColor(240, 240, 240);
+      doc.rect(10, y-3, 190, altura, "F");
+    }
+    zebra = !zebra;
+
+    // ✅ TEXTO
+    doc.text(nome, col.nome.x, y);
+    doc.text(empresa, col.empresa.x, y);
+    doc.text(funcao, col.funcao.x, y);
+    doc.text(chave, col.chave.x, y);
+
+    y += altura - 2;
+
+    // ✅ LINHA DE INFORMAÇÃO
+    doc.setFontSize(7);
+    doc.setTextColor(90);
+
+    doc.text(
+      "Emp: " + emp.toLocaleDateString() +
+      "   |   Venc: " + venc.toLocaleDateString(),
+      col.nome.x,
+      y
+    );
+
+    doc.setFontSize(8);
+    doc.setTextColor(0);
+
+    y += 5;
+
+    // ✅ LINHA SEPARADORA
+    doc.setDrawColor(200);
+    doc.line(10, y, 200, y);
+
+    y += 3;
   });
 
+  // ✅ ABRIR
   window.open(doc.output("bloburl"));
-
 }
+
 
 
 
